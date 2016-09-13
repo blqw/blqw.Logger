@@ -1,2 +1,2 @@
 # blqw.Logger
-基于微软Trace日志框架
+基于微软 System.Diagnostics.TraceListener 封装

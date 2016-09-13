@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -13,38 +14,47 @@ using blqw.Logger;
 public sealed class SLSTraceListener : BaseTraceListener
 {
     private SourceLevels _writedLevel;
-
+    private bool _isInitialized;
     /// <exception cref="ArgumentOutOfRangeException">level</exception>
     public SLSTraceListener()
     {
-        Initialize();
+
     }
 
     /// <exception cref="ArgumentOutOfRangeException">level</exception>
     public SLSTraceListener(string initializeData) : base(initializeData)
     {
-        Initialize();
+
     }
 
     private void Initialize()
     {
+        if (_isInitialized) return;
         if (Enum.TryParse(Attributes["level"] ?? "All", true, out _writedLevel) == false)
         {
             throw new ArgumentOutOfRangeException("level", "level属性值无效,请参考: System.Diagnostics.SourceLevels");
         }
+        _isInitialized = true;
     }
 
     protected override IWriter CreateWriter()
     {
         var dir = InitializeData;
-        dir = Path.Combine(string.IsNullOrWhiteSpace(dir) ? "d:\\sls2_logs" : dir, Name, "{0:yyyyMMddHH}");
+        dir = Path.Combine(string.IsNullOrWhiteSpace(dir) ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\sls_logs") : dir, Name, "{0:yyyyMMddHH}");
         return new SLSWriter(dir);
     }
 
     /// <summary>
     /// 获取当前线程中的日志跟踪等级
     /// </summary>
-    protected override SourceLevels WritedLevel => _writedLevel;
+    protected override SourceLevels WritedLevel
+    {
+        get
+        {
+            Initialize();
+            return _writedLevel;
+        }
+    }
 
     /// <summary>
     /// 获取跟踪侦听器支持的自定义特性。

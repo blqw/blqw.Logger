@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
+  <system.diagnostics>
+    <sources xdt:Transform="InsertIfMissing">
+      <source name="blqw.Logger" switchValue="Error"
+              xdt:Transform="Remove" xdt:Locator="Match(name)"/>
+    </sources>
+    <trace>
+      <listeners>
+        <add type="SLSTraceListener, blqw.Logger" xdt:Transform="Remove" xdt:Locator="Match(type)"/>
+      </listeners>
+    </trace>
+  </system.diagnostics>
+</configuration>

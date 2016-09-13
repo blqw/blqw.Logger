@@ -19,7 +19,7 @@ namespace blqw.Logger
 
             if (source.Listeners?.Count == 1 && source.Listeners[0] is DefaultTraceListener)
             {
-                var file = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "blqw.Logger-Logs", DateTime.Now.ToString("yyyy-MM-dd'.log'"));
+                var file = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\blqw.Logger-Logs", DateTime.Now.ToString("yyyy-MM-dd'.log'"));
                 var dir = Path.GetDirectoryName(file);
                 if (Directory.Exists(dir) == false)
                 {

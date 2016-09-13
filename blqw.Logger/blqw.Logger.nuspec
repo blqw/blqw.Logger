@@ -1,18 +1,27 @@
 <?xml version="1.0"?>
-<package >
+
+<package>
   <metadata>
-    <id>$id$</id>
-    <version>$version$</version>
-    <title>$title$</title>
-    <authors>$author$</authors>
-    <owners>$author$</owners>
-    <licenseUrl>http://LICENSE_URL_HERE_OR_DELETE_THIS_LINE</licenseUrl>
-    <projectUrl>http://PROJECT_URL_HERE_OR_DELETE_THIS_LINE</projectUrl>
-    <iconUrl>http://ICON_URL_HERE_OR_DELETE_THIS_LINE</iconUrl>
-    <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>$description$</description>
-    <releaseNotes>Summary of changes made in this release of the package.</releaseNotes>
-    <copyright>Copyright 2016</copyright>
-    <tags>Tag1 Tag2</tags>
+    <id> $id$ </id>
+    <version> $version$ </version>
+    <title> $title$ </title>
+    <authors> $author$ </authors>
+    <owners> $author$ </owners>
+    <licenseUrl> https://en.wikipedia.org/wiki/WTFPL </licenseUrl>
+    <projectUrl> https://github.com/blqw/blqw.Logger </projectUrl>
+    <iconUrl> https://avatars0.githubusercontent.com/u/9656154 </iconUrl>
+    <requireLicenseAcceptance> false </requireLicenseAcceptance>
+    <description> $description$ </description>
+    <releaseNotes>
+      基于微软 System.Diagnostics.TraceListener 封装.
+    </releaseNotes>
+    <copyright> Copyright 2016 </copyright>
+    <tags> blqw Logger Log Debug Trace Diagnostics </tags>
   </metadata>
+  <files>
+    <file src="App.config.install.xdt" target="content" />
+    <file src="web.config.install.xdt" target="content" />
+    <file src="App.config.uninstall.xdt" target="content" />
+    <file src="web.config.uninstall.xdt" target="content" />
+  </files>
 </package>
