@@ -15,17 +15,26 @@ public sealed class SLSTraceListener : BaseTraceListener
 {
     private SourceLevels _writedLevel;
     private bool _isInitialized;
+    private int _queueMaxLength;
     /// <exception cref="ArgumentOutOfRangeException">level</exception>
     public SLSTraceListener()
     {
-
+        Logger = InternalLogger.Instance;
     }
 
     /// <exception cref="ArgumentOutOfRangeException">level</exception>
     public SLSTraceListener(string initializeData) : base(initializeData)
     {
-
+        Logger = InternalLogger.Instance;
     }
+
+    internal SLSTraceListener(string dirPath,InternalLogger logger)
+        : base(dirPath)
+    {
+        Logger = logger;
+    }
+
+    internal override InternalLogger Logger { get; }
 
     private void Initialize()
     {
@@ -34,14 +43,19 @@ public sealed class SLSTraceListener : BaseTraceListener
         {
             throw new ArgumentOutOfRangeException("level", "level属性值无效,请参考: System.Diagnostics.SourceLevels");
         }
+        if (int.TryParse(Attributes["queueMaxLength"] ?? "100000", out _queueMaxLength) == false || _queueMaxLength < 100000)
+        {
+            throw new ArgumentOutOfRangeException("queueMaxLength", "queueMaxLength属性值无效,必须大于100000");
+        }
         _isInitialized = true;
     }
 
     protected override IWriter CreateWriter()
     {
+        Initialize();
         var dir = InitializeData;
         dir = Path.Combine(string.IsNullOrWhiteSpace(dir) ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\sls_logs") : dir, Name, "{0:yyyyMMddHH}");
-        return new SLSWriter(dir);
+        return new SLSWriter(dir, Logger) { QueueMaxCount = _queueMaxLength };
     }
 
     /// <summary>
@@ -56,10 +70,12 @@ public sealed class SLSTraceListener : BaseTraceListener
         }
     }
 
+
+
     /// <summary>
     /// 获取跟踪侦听器支持的自定义特性。
     /// </summary>
     /// <returns>为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。</returns>
-    protected override string[] GetSupportedAttributes() => new[] { "level" };
+    protected override string[] GetSupportedAttributes() => new[] { "level", "queueMaxLength" };
 }
 

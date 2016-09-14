@@ -12,7 +12,7 @@ namespace blqw.Logger
     internal class SLSWriter : IWriter
     {
         //单个文件容量阈值
-        private const long FILE_MAX_SIZE = 5 * 1024 * 1024; //兆
+        private const long FILE_MAX_SIZE = 5*1024*1024; //兆
 
         /// <summary>
         /// 需要转义的字符
@@ -49,13 +49,14 @@ namespace blqw.Logger
         /// 队列
         /// </summary>
         private readonly ConcurrentQueue<List<LogItem>> Queue;
-
+        
         /// <summary>
         /// 初始化
         /// </summary>
         /// <param name="dir"> 文件输出路径 </param>
-        public SLSWriter(string dir)
+        public SLSWriter(string dir, InternalLogger logger)
         {
+            Logger = logger;
             Cache = new MemoryCache("LogCache:" + dir);
             Name = dir;
             _Buffer = new StringBuilder();
@@ -63,15 +64,22 @@ namespace blqw.Logger
             Queue = new ConcurrentQueue<List<LogItem>>();
         }
 
+        public InternalLogger Logger { get; }
+
         /// <summary>
         /// 批处理最大数量
         /// </summary>
-        public int BatchMaxCount => 0;
+        public int BatchMaxCount { get; set; } = 0;
 
         /// <summary>
         /// 批处理最大等待时间
         /// </summary>
-        public TimeSpan BatchMaxWait => TimeSpan.Zero;
+        public TimeSpan BatchMaxWait { get; set; } = TimeSpan.Zero;
+
+        /// <summary>
+        /// 队列最大长度
+        /// </summary>
+        public int QueueMaxCount { get; set; } = 0;
 
         /// <summary>
         /// 写入器名称
@@ -84,7 +92,7 @@ namespace blqw.Logger
         /// <param name="item"> </param>
         public void Append(LogItem item)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             var key = item.LogID.ToString("n");
             var list = Cache[key] as List<LogItem>;
 
@@ -92,7 +100,7 @@ namespace blqw.Logger
             {
                 if (item.IsLast)
                 {
-                    LogServices.Exit();
+                    Logger?.Exit();
                     return;
                 }
                 list = new List<LogItem>();
@@ -126,7 +134,7 @@ namespace blqw.Logger
             {
                 list.Add(item);
             }
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary> 执行与释放或重置非托管资源关联的应用程序定义的任务。 </summary>
@@ -138,7 +146,7 @@ namespace blqw.Logger
         /// </summary>
         public void Flush()
         {
-            LogServices.Entry();
+            Logger?.Entry();
             try
             {
                 List<LogItem> logs;
@@ -146,7 +154,7 @@ namespace blqw.Logger
                 {
                     if ((logs == null) || (logs.Count == 0))
                     {
-                        LogServices.Exit();
+                        Logger?.Exit();
                         return;
                     }
 
@@ -156,7 +164,7 @@ namespace blqw.Logger
                     _Buffer.Append(',');
                     _Buffer.Append(log.LogID.ToString("n"));
                     _Buffer.Append(',');
-                    _Buffer.Append((int)log.Level);
+                    _Buffer.Append((int) log.Level);
                     _Buffer.Append(',');
                     _Buffer.Append(log.Module);
                     _Buffer.Append(',');
@@ -166,7 +174,7 @@ namespace blqw.Logger
 
                         _Buffer.Append(log.Time.ToString("HH:mm:ss.fff"));
                         _Buffer.Append("%2C"); //这是一个逗号
-                        _Buffer.Append((int)log.Level);
+                        _Buffer.Append((int) log.Level);
                         _Buffer.Append("%2C"); //这是一个逗号
                         _Buffer.Append(DoubleDecode(log.Category));
                         _Buffer.Append("%2C"); //这是一个逗号
@@ -195,7 +203,7 @@ namespace blqw.Logger
                 _Buffer.Clear();
                 _IndexerBuffer.Clear();
             }
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary>
@@ -204,13 +212,13 @@ namespace blqw.Logger
         /// <param name="arguments"> </param>
         private void RemovedCallback(CacheEntryRemovedArguments arguments)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             var list = arguments?.CacheItem?.Value as List<LogItem>;
             if (list != null)
             {
                 Queue.Enqueue(list);
             }
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary>
@@ -218,12 +226,12 @@ namespace blqw.Logger
         /// </summary>
         /// <param name="path"> </param>
         /// <param name="buffer"> </param>
-        private static void WriteFile(string path, StringBuilder buffer)
+        private void WriteFile(string path, StringBuilder buffer)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             if (buffer.Length == 0)
             {
-                LogServices.Entry();
+                Logger?.Entry();
                 return;
             }
             path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, string.Format(path, DateTime.Now));
@@ -239,7 +247,7 @@ namespace blqw.Logger
                 file.Directory.Create();
             }
             File.AppendAllText(file.FullName, buffer.ToString());
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary>
@@ -367,13 +375,13 @@ namespace blqw.Logger
             }
         }
 
-        public static void Delete(string path, int days)
+        public void Delete(string path, int days)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             var root = Directory.GetParent(path);
             if (root.Exists == false)
             {
-                LogServices.Exit();
+                Logger?.Exit();
                 return;
             }
             var time = DateTime.Today.AddDays(-days);
@@ -387,11 +395,11 @@ namespace blqw.Logger
                     }
                     catch (Exception ex)
                     {
-                        LogServices.Error(ex, $"删除({dir.FullName})下文件失败");
+                        Logger?.Error(ex, $"删除({dir.FullName})下文件失败");
                     }
                 }
             }
-            LogServices.Exit();
+            Logger?.Exit();
         }
     }
 }

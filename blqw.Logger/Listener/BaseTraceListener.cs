@@ -10,7 +10,7 @@ namespace blqw.Logger
     public abstract class BaseTraceListener : TraceListener
     {
         private static readonly char[] _EmptyChars = new char[0];
-
+        
         /// <summary>
         /// 为Name属性提供值
         /// </summary>
@@ -39,6 +39,8 @@ namespace blqw.Logger
         protected virtual SourceLevels WritedLevel { get; }
 
         protected string InitializeData { get; }
+
+        internal virtual InternalLogger Logger { get; }
 
         /// <summary>
         /// 获取或设置此 <see cref="T:System.Diagnostics.TraceListener" /> 的名称。
@@ -82,9 +84,9 @@ namespace blqw.Logger
         /// </summary>
         public override void Close()
         {
-            LogServices.Entry();
+            Logger?.Entry();
             LoggerContext.Clear();
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary>
@@ -92,13 +94,13 @@ namespace blqw.Logger
         /// </summary>
         public override void Flush()
         {
-            LogServices.Entry();
+            Logger?.Entry();
             if (Trace.AutoFlush)
             {
                 //判断当前方法是否是由于主动调用 .Flush() 触发的
                 if ("Flush".Equals(new StackFrame(1, false).GetMethod().Name, StringComparison.Ordinal))
                 {
-                    LogServices.Exit();
+                    Logger?.Exit();
                     return;
                 }
             }
@@ -117,20 +119,20 @@ namespace blqw.Logger
             }
             else
             {
-                LogServices.Log(TraceEventType.Verbose, $"{nameof(LoggerContext)} is null");
+                Logger?.Log(TraceEventType.Verbose, $"{nameof(LoggerContext)} is null");
             }
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         private void AddLog(TraceLevel logLevel, string category = null, string message = null, object value = null,
             string callstack = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0)
         {
-            LogServices.Entry(member, line);
-            LogServices.Entry();
+            Logger?.Entry(member, line);
+            Logger?.Entry();
             var context = new LoggerContext();
             if (context.IsNew)
             {
-                LogServices.Log(TraceEventType.Verbose, "NewLog");
+                Logger?.Log(TraceEventType.Verbose, "NewLog");
                 _queue.Add(new LogItem
                 {
                     LogID = context.LogID,
@@ -143,8 +145,7 @@ namespace blqw.Logger
             {
                 context.MinLevel = logLevel;
             }
-
-
+            
             object content;
 
             var ex = value as Exception;
@@ -192,7 +193,7 @@ namespace blqw.Logger
                 Message = message,
                 Module = Name
             });
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary>
@@ -256,7 +257,7 @@ namespace blqw.Logger
             }
 
             traceLevel = ConvertToLevel(eventType);
-            return ((int)WritedLevel & (int)eventType) != 0;
+            return ((int)level & (int)eventType) != 0;
         }
 
         /// <summary>
@@ -276,13 +277,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Transfer, null, out traceLevel))
             {
-                AddLog(traceLevel, source, message,
-                    new TraceDataArgs
-                    {
-                        ID = id,
-                        ActivityID = relatedActivityId,
-                        EventType = TraceEventType.Transfer
-                    }, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AddLog(traceLevel, source, message, null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -307,13 +302,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, data, out traceLevel))
             {
-                AddLog(traceLevel, source, null,
-                    new TraceDataArgs
-                    {
-                        ID = id,
-                        Data = data.ToString(),
-                        EventType = eventType
-                    }, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AddLog(traceLevel, source, null, GetContent(id, Guid.Empty, data, eventType), traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -333,12 +322,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, message,
-                    new TraceDataArgs
-                    {
-                        ID = id,
-                        EventType = eventType
-                    }, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AddLog(traceLevel, source, message, null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -363,13 +347,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, null,
-                    new TraceDataArgs
-                    {
-                        ID = id,
-                        EventType = eventType,
-                        Data = string.Join(Environment.NewLine, data)
-                    }, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AddLog(traceLevel, source, null, GetContent(id, Guid.Empty, string.Join(Environment.NewLine, data), eventType), traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -392,12 +370,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, null,
-                    new TraceDataArgs
-                    {
-                        ID = id,
-                        EventType = eventType
-                    }, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AddLog(traceLevel, source, null, null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -427,12 +400,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, string.Format(format, args),
-                    new TraceDataArgs
-                    {
-                        ID = id,
-                        EventType = eventType
-                    }, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AddLog(traceLevel, source, string.Format(format, args), null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -579,23 +547,18 @@ namespace blqw.Logger
             }
         }
 
-        private struct TraceDataArgs
+        private static object GetContent(int id, Guid activityID, object data, TraceEventType eventType)
         {
-            public int ID { private get; set; }
-            public Guid ActivityID { private get; set; }
-            public string Data { private get; set; }
-            public TraceEventType EventType { private get; set; }
-
-            public override string ToString()
+            if (data == null || string.IsNullOrWhiteSpace(data as string))
             {
-                if (string.IsNullOrWhiteSpace(Data))
-                {
-                    return "";
-                }
-                return ActivityID == Guid.Empty
-                    ? $@"({ID})[{EventType}]: {Data}"
-                    : $@"({ID})[{EventType}]: {ActivityID} : {Data}";
+                return null;
             }
+            if (activityID == Guid.Empty)
+            {
+                return new { ID = id, EventType = eventType, Data = data };
+            }
+            return new { ID = id, EventType = eventType, Data = data, ActivityID = activityID };
         }
+
     }
 }

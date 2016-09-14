@@ -27,6 +27,7 @@ namespace blqw.Logger
         /// </summary>
         public const int DEFAULT_QUEUE_MAX_COUNT = 100000; //条
 
+        private static InternalLogger Logger { get; } = InternalLogger.Instance;
 
         /// <summary>
         /// 批处理最大数量
@@ -68,14 +69,14 @@ namespace blqw.Logger
         /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null" />.</exception>
         public WriteQueue(IWriter writer, int batchMaxCount, TimeSpan batchMaxWait, int queueMaxCount)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             if (writer == null) throw new ArgumentNullException(nameof(writer));
             _writer = writer;
             _task = new SingletonTask(WriteAsync);
             _batchMaxCount = GetNotDefault(batchMaxCount, _writer.BatchMaxCount, DEFAULT_BATCH_MAX_COUNT);
             _batchWaitMilliseconds = GetNotDefault((int)batchMaxWait.TotalMilliseconds, (int)_writer.BatchMaxWait.TotalMilliseconds, DEFAULT_BATCH_WAIT_MILLISECONDS);
-            _queueMaxCount = GetNotDefault(queueMaxCount, DEFAULT_QUEUE_MAX_COUNT, DEFAULT_QUEUE_MAX_COUNT);
-            LogServices.Exit();
+            _queueMaxCount = GetNotDefault(queueMaxCount, _writer.QueueMaxCount, DEFAULT_QUEUE_MAX_COUNT);
+            Logger?.Exit();
 
         }
 
@@ -94,23 +95,22 @@ namespace blqw.Logger
         public bool IsWriting => _task.IsRunning;
 
         private readonly SingletonTask _task;
-
         /// <summary>
         /// 追加写入对象
         /// </summary>
         /// <param name="item"> 文件写入任务 </param>
         public void Add(LogItem item)
         {
-            LogServices.Entry();
-            if (_items.Count >= _queueMaxCount)
+            Logger?.Entry();
+            if (_items.Count >= _queueMaxCount && item.IsLast == false)
             {
-                LogServices.Log(TraceEventType.Error, "日志队列超过最大数量,日志被抛弃", "数量:" + _items.Count);
-                LogServices.Exit();
+                Logger?.Log(TraceEventType.Error, "日志队列超过最大数量,日志被抛弃", "数量:" + _items.Count);
+                Logger?.Exit();
                 return;
             }
             _items.Enqueue(item);
             _task.RunIfStop();
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary>
@@ -119,7 +119,7 @@ namespace blqw.Logger
         /// <returns> </returns>
         private async Task WriteAsync(ActivityTokenSource tokenSource)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             _lastFlushTime = DateTime.Now;
             var batch = 0; //当前批处数量
             while (true)
@@ -131,7 +131,7 @@ namespace blqw.Logger
                 {
                     if (batch == 0)
                     {
-                        LogServices.Exit();
+                        Logger?.Exit();
                         return;
                     }
                     log = default(LogItem);
@@ -148,7 +148,7 @@ namespace blqw.Logger
                     if (runtime < _batchWaitMilliseconds)
                     {
                         Thread.Sleep(500);
-                        LogServices.Log(TraceEventType.Verbose, "Sleep(500)");
+                        Logger?.Log(TraceEventType.Verbose, "Sleep(500)");
                         continue;
                     }
                 }
@@ -189,7 +189,7 @@ namespace blqw.Logger
                     }
                     _lastFlushTime = DateTime.Now; //最后刷新时间
                     batch = 0; //重置批数量
-                    LogServices.Log(TraceEventType.Verbose, "Flush Complete", $"LastFlushTime: {_lastFlushTime:yyyy-MM-dd HH:mm:ss}");
+                    Logger?.Log(TraceEventType.Verbose, "Flush Complete", $"LastFlushTime: {_lastFlushTime:yyyy-MM-dd HH:mm:ss}");
                 }
             }
         }

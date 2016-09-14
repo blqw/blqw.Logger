@@ -10,6 +10,7 @@ namespace blqw.Logger
     /// </summary>
     internal sealed class SingletonTask
     {
+        private InternalLogger Logger = InternalLogger.Instance;
         /// <summary>
         /// 健康检查执行时间间隔(秒)
         /// </summary>
@@ -37,11 +38,11 @@ namespace blqw.Logger
         /// <param name="checkInterval"> 健康检查间隔时间,单位秒(默认30) </param>
         public SingletonTask(Func<ActivityTokenSource, Task> create, int checkInterval = 30)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             _create = create;
             _checkInterval = checkInterval;
             _lastRunTime = DateTime.MinValue;
-            LogServices.Exit();
+            Logger?.Exit();
         }
 
         /// <summary>
@@ -51,24 +52,24 @@ namespace blqw.Logger
         {
             get
             {
-                LogServices.Entry();
+                Logger?.Entry();
                 var b = _taskToken?.CancelIfTimeout();
                 if (b == null)
                 {
-                    LogServices.Return("false");
+                    Logger?.Return("false");
                     return false;
                 }
                 var interval = (DateTime.Now - _lastRunTime).TotalSeconds;
                 if (interval < _checkInterval)
                 {
-                    LogServices.Return(b.Value.ToString());
+                    Logger?.Return(b.Value.ToString());
                     return b.Value;
                 }
                 //如果最后执行时间大于强制检查时间,则强制同步多线程字段
                 _lastRunTime = DateTime.Now;
                 Interlocked.MemoryBarrier();
                 var value = _taskToken?.CancelIfTimeout() ?? false;
-                LogServices.Return(value.ToString());
+                Logger?.Return(value.ToString());
                 return value;
             }
         }
@@ -78,10 +79,10 @@ namespace blqw.Logger
         /// </summary>
         public void RunIfStop()
         {
-            LogServices.Entry();
+            Logger?.Entry();
             if (IsRunning)
             {
-                LogServices.Exit();
+                Logger?.Exit();
                 return;
             }
 
@@ -89,12 +90,12 @@ namespace blqw.Logger
             //任务标识,如果更新失败,说明其他线程已经更新了,当前线程主动退出
             if (Interlocked.CompareExchange(ref _taskToken, token, null) != null)
             {
-                LogServices.Exit();
+                Logger?.Exit();
                 return;
             }
             SynchronizationContext.SetSynchronizationContext(null);
             Run(token).ConfigureAwait(false);
-            LogServices.Exit();
+            Logger?.Exit();
         }
         
         /// <summary>
@@ -103,7 +104,7 @@ namespace blqw.Logger
         /// <param name="token"> </param>
         private async Task Run(ActivityTokenSource token)
         {
-            LogServices.Entry();
+            Logger?.Entry();
             await Task.Delay(1);
             try
             {
@@ -113,12 +114,12 @@ namespace blqw.Logger
             }
             catch (Exception ex)
             {
-                LogServices.Error(ex, nameof(SingletonTask));
+                Logger?.Error(ex, nameof(SingletonTask));
             }
             finally
             {
                 Interlocked.CompareExchange(ref _taskToken, null, token);
-                LogServices.Exit();
+                Logger?.Exit();
             }
         }
     }
