@@ -123,7 +123,6 @@ namespace blqw.Logger
         /// </summary>
         public static void Clear()
         {
-            Trace.CorrelationManager.ActivityId = Guid.Empty;
             CallContext.FreeNamedDataSlot(CONTEXT_FIELD);
         }
     }

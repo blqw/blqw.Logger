@@ -16,7 +16,7 @@ namespace blqw.Logger
         /// </summary>
         private string _name;
 
-        private WriteQueue _queue;
+        private volatile WriteQueue _queue;
 
         protected BaseTraceListener()
             : this(null)
@@ -33,6 +33,23 @@ namespace blqw.Logger
             WritedLevel = SourceLevels.All;
         }
 
+        private void InternalInitialize()
+        {
+            if (_isInitialized) return;
+            Initialize();
+            _queue = new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = Logger };
+            _isInitialized = true;
+        }
+
+        private bool _isInitialized;
+
+        /// <summary>
+        /// 初始化
+        /// </summary>
+        protected virtual void Initialize()
+        {
+
+        }
         /// <summary>
         /// 获取当前线程中的日志跟踪等级
         /// </summary>
@@ -61,7 +78,6 @@ namespace blqw.Logger
                     throw new ArgumentNullException(nameof(Name), "监听器名称不能为空");
                 }
                 _name = value;
-                _queue = new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = Logger };
             }
         }
 
@@ -86,6 +102,7 @@ namespace blqw.Logger
         {
             Logger?.Entry();
             LoggerContext.Clear();
+            Trace.CorrelationManager.ActivityId = Guid.Empty;
             Logger?.Exit();
         }
 
@@ -121,6 +138,7 @@ namespace blqw.Logger
             {
                 Logger?.Log(TraceEventType.Verbose, $"{nameof(LoggerContext)} is null");
             }
+            LoggerContext.Clear();
             Logger?.Exit();
         }
 
@@ -243,6 +261,7 @@ namespace blqw.Logger
         /// <param name="eventType"> 事件类型 </param>
         private bool ShouldTrace(TraceEventType eventType, object value, out TraceLevel traceLevel)
         {
+            InternalInitialize();
             var level = WritedLevel;
             if (level == SourceLevels.Off)
             {
@@ -446,7 +465,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
             {
-                AddLog(traceLevel, null, message, message);
+                AddLog(traceLevel, null, message, null);
             }
         }
 
@@ -459,7 +478,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
             {
-                AddLog(traceLevel, null, message, message);
+                AddLog(traceLevel, null, message, null);
             }
         }
 

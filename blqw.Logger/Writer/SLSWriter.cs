@@ -70,17 +70,17 @@ namespace blqw.Logger
         /// <summary>
         /// 批处理最大数量
         /// </summary>
-        public int BatchMaxCount { get; set; } = 0;
+        public int BatchMaxCount { get; set; } = 1;
 
         /// <summary>
         /// 批处理最大等待时间
         /// </summary>
-        public TimeSpan BatchMaxWait { get; set; } = TimeSpan.Zero;
+        public TimeSpan BatchMaxWait { get; set; } = TimeSpan.FromSeconds(5);
 
         /// <summary>
         /// 队列最大长度
         /// </summary>
-        public int QueueMaxCount { get; set; } = 0;
+        public int QueueMaxCount { get; set; } = 100000;
 
         /// <summary>
         /// 写入器名称

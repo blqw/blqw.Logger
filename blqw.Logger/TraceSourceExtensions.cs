@@ -33,7 +33,7 @@ namespace blqw.Logger
                 {
                     Directory.CreateDirectory(dirPath);
                 }
-                source.Listeners.Add(new SLSTraceListener(dirPath, null) { Name = "TraceSourceExtensions" });
+                source.Listeners.Add(new SLSTraceListener(dirPath, null) { Name = nameof(TraceSourceExtensions) });
             }
             return source;
         }
@@ -69,7 +69,7 @@ namespace blqw.Logger
                     $"{file}: {line}",
                     message);
                 source.TraceEvent(type, 1, txt);
-                source.Flush();
+                if (!Trace.AutoFlush) source.Flush();
             }
             catch (Exception ex)
             {
