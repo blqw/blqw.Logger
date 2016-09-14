@@ -19,22 +19,22 @@ public sealed class SLSTraceListener : BaseTraceListener
     /// <exception cref="ArgumentOutOfRangeException">level</exception>
     public SLSTraceListener()
     {
-        Logger = InternalLogger.Instance;
+        Logger = TraceSourceExtensions.InternalSource;
     }
 
     /// <exception cref="ArgumentOutOfRangeException">level</exception>
     public SLSTraceListener(string initializeData) : base(initializeData)
     {
-        Logger = InternalLogger.Instance;
+        Logger = TraceSourceExtensions.InternalSource;
     }
 
-    internal SLSTraceListener(string dirPath,InternalLogger logger)
+    internal SLSTraceListener(string dirPath, TraceSource logger)
         : base(dirPath)
     {
         Logger = logger;
     }
 
-    internal override InternalLogger Logger { get; }
+    public override TraceSource Logger { get; }
 
     private void Initialize()
     {

@@ -27,7 +27,7 @@ namespace blqw.Logger
         /// </summary>
         public const int DEFAULT_QUEUE_MAX_COUNT = 100000; //条
 
-        private static InternalLogger Logger { get; } = InternalLogger.Instance;
+        public TraceSource Logger { get; set; } = TraceSourceExtensions.InternalSource;
 
         /// <summary>
         /// 批处理最大数量
@@ -72,7 +72,7 @@ namespace blqw.Logger
             Logger?.Entry();
             if (writer == null) throw new ArgumentNullException(nameof(writer));
             _writer = writer;
-            _task = new SingletonTask(WriteAsync);
+            _task = new SingletonTask(WriteAsync, writer.Logger);
             _batchMaxCount = GetNotDefault(batchMaxCount, _writer.BatchMaxCount, DEFAULT_BATCH_MAX_COUNT);
             _batchWaitMilliseconds = GetNotDefault((int)batchMaxWait.TotalMilliseconds, (int)_writer.BatchMaxWait.TotalMilliseconds, DEFAULT_BATCH_WAIT_MILLISECONDS);
             _queueMaxCount = GetNotDefault(queueMaxCount, _writer.QueueMaxCount, DEFAULT_QUEUE_MAX_COUNT);

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,6 +29,8 @@ namespace blqw.Logger
         /// 写入器名称
         /// </summary>
         string Name { get; }
+
+        TraceSource Logger { get; set; }
 
         /// <summary>
         /// 追加日志

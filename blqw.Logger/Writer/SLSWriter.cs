@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.Caching;
 using System.Text;
@@ -54,7 +55,7 @@ namespace blqw.Logger
         /// 初始化
         /// </summary>
         /// <param name="dir"> 文件输出路径 </param>
-        public SLSWriter(string dir, InternalLogger logger)
+        public SLSWriter(string dir, TraceSource logger)
         {
             Logger = logger;
             Cache = new MemoryCache("LogCache:" + dir);
@@ -64,7 +65,7 @@ namespace blqw.Logger
             Queue = new ConcurrentQueue<List<LogItem>>();
         }
 
-        public InternalLogger Logger { get; }
+        public TraceSource Logger { get; set; }
 
         /// <summary>
         /// 批处理最大数量

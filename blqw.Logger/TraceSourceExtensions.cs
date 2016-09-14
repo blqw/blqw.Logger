@@ -9,11 +9,9 @@ namespace blqw.Logger
     /// <summary>
     /// 用于记录异常的静态方法
     /// </summary>
-    internal class InternalLogger
+    internal static class TraceSourceExtensions
     {
-        public static InternalLogger Instance { get; } = new InternalLogger();
-
-        private readonly TraceSource _Source = InitSource();
+        public static TraceSource InternalSource { get; } = InitSource();
 
         private static TraceSource InitSource()
         {
@@ -35,23 +33,17 @@ namespace blqw.Logger
                 {
                     Directory.CreateDirectory(dirPath);
                 }
-                source.Listeners.Add(new SLSTraceListener(dirPath, null));
+                source.Listeners.Add(new SLSTraceListener(dirPath, null) { Name = "TraceSourceExtensions" });
             }
             return source;
         }
 
-
-        /// <summary>
-        /// 分割线
-        /// </summary>
-        private const string CUTTING_LINE = "---------------------------------------------------------------";
-
         /// <summary>
         /// 输出异常信息
         /// </summary>
-        public void Error(Exception ex, string title = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        public static void Error(this TraceSource source, Exception ex, string title = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
-            Log(TraceEventType.Error, title, ex.ToString(), member, line, file);
+            Log(source, TraceEventType.Error, title, ex.ToString(), member, line, file);
         }
 
         /// <summary>
@@ -63,44 +55,41 @@ namespace blqw.Logger
         /// <param name="member"></param>
         /// <param name="line"></param>
         /// <param name="file"></param>
-        public void Log(TraceEventType type, string title, string message = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        public static void Log(this TraceSource source, TraceEventType type, string title, string message = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
-            if (_Source.Switch.ShouldTrace(type) == false)
+            if (source == null || source.Switch.ShouldTrace(type) == false)
             {
                 return;
             }
             try
             {
                 var txt = string.Join(Environment.NewLine,
-                    string.Empty,
-                    //$"[{type}]: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}",
+                    $"[{type}]: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}",
                     $"[{member}]: {title}",
                     $"{file}: {line}",
-                    message,
-                    CUTTING_LINE,
-                    string.Empty);
-                _Source.TraceEvent(type, 1, txt);
-                _Source.Flush();
+                    message);
+                source.TraceEvent(type, 1, txt);
+                source.Flush();
             }
-            catch
+            catch (Exception ex)
             {
                 // ignored
             }
         }
 
-        public void Entry([CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        public static void Entry(this TraceSource source, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
-            Log(TraceEventType.Start, $"进入方法 {member}", null, member, line, file);
+            Log(source, TraceEventType.Start, $"进入方法 {member}", null, member, line, file);
         }
 
-        public void Return(string @return, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        public static void Return(this TraceSource source, string @return, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
-            Log(TraceEventType.Stop, $"离开方法 {member}", $"return {@return}", member, line, file);
+            Log(source, TraceEventType.Stop, $"离开方法 {member}", $"return {@return}", member, line, file);
         }
 
-        public void Exit([CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        public static void Exit(this TraceSource source, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
-            Log(TraceEventType.Stop, $"离开方法 {member}", null, member, line, file);
+            Log(source, TraceEventType.Stop, $"离开方法 {member}", null, member, line, file);
         }
     }
 }

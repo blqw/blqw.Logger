@@ -10,7 +10,7 @@ namespace blqw.Logger
     /// </summary>
     internal sealed class SingletonTask
     {
-        private InternalLogger Logger = InternalLogger.Instance;
+        public TraceSource Logger { get; }
         /// <summary>
         /// 健康检查执行时间间隔(秒)
         /// </summary>
@@ -36,8 +36,9 @@ namespace blqw.Logger
         /// </summary>
         /// <param name="create"> 创建任务的委托 </param>
         /// <param name="checkInterval"> 健康检查间隔时间,单位秒(默认30) </param>
-        public SingletonTask(Func<ActivityTokenSource, Task> create, int checkInterval = 30)
+        public SingletonTask(Func<ActivityTokenSource, Task> create, TraceSource logger, int checkInterval = 30)
         {
+            Logger = logger;
             Logger?.Entry();
             _create = create;
             _checkInterval = checkInterval;
@@ -97,7 +98,7 @@ namespace blqw.Logger
             Run(token).ConfigureAwait(false);
             Logger?.Exit();
         }
-        
+
         /// <summary>
         /// 执行任务,并在任务退出后更新任务标识
         /// </summary>

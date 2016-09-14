@@ -10,7 +10,7 @@ namespace blqw.Logger
     public abstract class BaseTraceListener : TraceListener
     {
         private static readonly char[] _EmptyChars = new char[0];
-        
+
         /// <summary>
         /// 为Name属性提供值
         /// </summary>
@@ -40,7 +40,7 @@ namespace blqw.Logger
 
         protected string InitializeData { get; }
 
-        internal virtual InternalLogger Logger { get; }
+        public virtual TraceSource Logger { get; }
 
         /// <summary>
         /// 获取或设置此 <see cref="T:System.Diagnostics.TraceListener" /> 的名称。
@@ -61,7 +61,7 @@ namespace blqw.Logger
                     throw new ArgumentNullException(nameof(Name), "监听器名称不能为空");
                 }
                 _name = value;
-                _queue = new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0);
+                _queue = new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = Logger };
             }
         }
 
@@ -145,7 +145,7 @@ namespace blqw.Logger
             {
                 context.MinLevel = logLevel;
             }
-            
+
             object content;
 
             var ex = value as Exception;
