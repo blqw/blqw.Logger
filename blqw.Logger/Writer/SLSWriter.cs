@@ -264,6 +264,10 @@ namespace blqw.Logger
                 for (int i = 1, length = logs.Count; i < length; i++)
                 {
                     log = logs[i];
+                    if (string.IsNullOrWhiteSpace(log.Message))
+                    {
+                        continue;
+                    }
                     var bytes = Encoding.UTF8.GetBytes(log.Message);
                     for (int j = 0, l = bytes.Length; j < l; j++)
                     {
