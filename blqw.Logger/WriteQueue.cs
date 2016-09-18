@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using blqw.Logger.Writer;
 
 namespace blqw.Logger
 {
@@ -94,6 +95,11 @@ namespace blqw.Logger
         /// </summary>
         public bool IsWriting => _task.IsRunning;
 
+        /// <summary>
+        /// 队列中的数目
+        /// </summary>
+        public int Count => _items.Count;
+
         private readonly SingletonTask _task;
         /// <summary>
         /// 追加写入对象
@@ -150,7 +156,7 @@ namespace blqw.Logger
                 }
                 else
                 {
-                    var @async = _writer as IWriterAsync;
+                    var @async = _writer as IAppendAsync;
                     if (@async == null)
                         _writer.Append(log);
                     else
@@ -172,7 +178,7 @@ namespace blqw.Logger
 
                 //调用写入器的刷新方法
                 {
-                    var @async = _writer as IWriterAsync;
+                    var @async = _writer as IFlushAsync;
                     if (@async == null)
                         _writer.Flush();
                     else

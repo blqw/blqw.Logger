@@ -64,6 +64,10 @@ namespace blqw.Logger
 
         private int _isInitialized;
 
+        public int CacheCount => Queue.Count;
+
+        public bool IsSleep => Queue.IsWriting == false;
+
         /// <summary>
         /// 初始化
         /// </summary>

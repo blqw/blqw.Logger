@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace blqw.Logger
 {
-    internal class SLSWriter : IWriter
+    internal class SLSWriter : IWriter, IFlushAsync
     {
         //单个文件容量阈值
         private const long DEFAULT_FILE_MAX_SIZE = 5 * 1024 * 1024; //兆
@@ -51,7 +51,7 @@ namespace blqw.Logger
         /// <summary>
         /// 批处理最大数量
         /// </summary>
-        public int BatchMaxCount { get; set; } = 1;
+        public int BatchMaxCount { get; set; } = 0;
 
         /// <summary>
         /// 批处理最大等待时间
@@ -283,5 +283,19 @@ namespace blqw.Logger
             Logger?.Exit();
         }
 
+        private Task _flushTask;
+        /// <summary>
+        /// 异步刷新
+        /// </summary>
+        /// <param name="token"> </param>
+        /// <returns></returns>
+        public async Task FlushAsync(CancellationToken token)
+        {
+            if (_flushTask != null)
+            {
+                await _flushTask;
+            }
+            _flushTask = Task.Factory.StartNew(Flush, token);
+        }
     }
 }
