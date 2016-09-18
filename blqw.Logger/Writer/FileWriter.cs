@@ -17,11 +17,12 @@ namespace blqw.Logger
         /// </summary>
         private static long _NextDeleteFileTicks;
 
-        private static readonly byte colon = Encoding.UTF8.GetBytes(":")[0];
-        private static readonly byte semicolon = Encoding.UTF8.GetBytes(";")[0];
-        private static readonly byte comma = Encoding.UTF8.GetBytes(",")[0];
-        private static readonly byte space = Encoding.UTF8.GetBytes(" ")[0];
-        private static readonly byte[] newline = Encoding.UTF8.GetBytes(Environment.NewLine);
+        private static readonly byte _Colon = Encoding.UTF8.GetBytes(":")[0];
+        private static readonly byte _Semicolon = Encoding.UTF8.GetBytes(";")[0];
+        private static readonly byte _Comma = Encoding.UTF8.GetBytes(",")[0];
+        private static readonly byte _Space = Encoding.UTF8.GetBytes(" ")[0];
+        private static readonly byte[] _Newline = Encoding.UTF8.GetBytes(Environment.NewLine);
+        private static readonly byte[] _Head = { 239, 187, 191 };
         private readonly long _filesize;
         private readonly string _path;
         private FileStream _writer;
@@ -45,7 +46,7 @@ namespace blqw.Logger
             }
             _path = Path.Combine(path, "{0:yyyyMMddHH}");
             _filesize = filesize;
-            ChangeFileIfFull();
+            ChangeFile();
         }
 
         /// <summary>
@@ -65,26 +66,19 @@ namespace blqw.Logger
         public void Dispose()
         {
             var writer = Interlocked.Exchange(ref _writer, null);
-            writer?.Close();
+            try
+            {
+                writer?.Flush();
+            }
+            catch
+            {
+                // ignored
+            }
             writer?.Dispose();
         }
 
-        /// <summary>
-        /// 如果文件已满则改变当前文件
-        /// </summary>
-        /// <exception cref="ObjectDisposedException">流已关闭</exception>
-        public void ChangeFileIfFull()
+        private void ChangeFile()
         {
-            if (_writer == null)
-            {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            Logger?.Entry();
-            if (_writer.Length < _filesize)
-            {
-                Logger?.Exit();
-                return;
-            }
             if (SetTomorrow(ref _NextDeleteFileTicks))
             {
                 Task.Run(() => Delete(2));
@@ -98,9 +92,18 @@ namespace blqw.Logger
                 {
                     file.Directory.Create();
                 }
+
                 try
                 {
-                    _writer = file.Open(FileMode.Append, FileAccess.Write, FileShare.Read);
+                    var writer = new FileStream(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read, (int)_filesize);
+                    var source = Interlocked.Exchange(ref _writer, writer);
+                    source?.Flush();
+                    source?.Dispose();
+                    if (writer.Position == 0)
+                    {
+                        writer.Write(_Head, 0, _Head.Length);
+                        Append(Thread.CurrentThread.ManagedThreadId.ToString());
+                    }
                     CurrentFilePath = file.FullName;
                     break;
                 }
@@ -109,7 +112,27 @@ namespace blqw.Logger
                     max++;
                     Logger?.Error(ex, $"文件({file.FullName})打开失败");
                 }
+
             }
+        }
+
+        /// <summary>
+        /// 如果文件已满则改变当前文件
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">流已关闭</exception>
+        public void ChangeFileIfFull()
+        {
+            Logger?.Entry();
+            if (_writer == null)
+            {
+                throw new ObjectDisposedException("流已关闭");
+            }
+            if (_writer.Length < _filesize)
+            {
+                Logger?.Exit();
+                return;
+            }
+            ChangeFile();
             Logger?.Exit();
         }
 
@@ -222,7 +245,7 @@ namespace blqw.Logger
         /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
         /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
         /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter Append(string text, Encoding encoding = null)
+        public FileWriter Append(string text)
         {
             if (_writer == null)
             {
@@ -232,7 +255,7 @@ namespace blqw.Logger
             {
                 return this;
             }
-            var buffer = (encoding ?? Encoding.UTF8).GetBytes(text);
+            var buffer = Encoding.UTF8.GetBytes(text);
             _writer.Write(buffer, 0, buffer.Length);
             return this;
         }
@@ -271,17 +294,17 @@ namespace blqw.Logger
             {
                 throw new ObjectDisposedException("流已关闭");
             }
-            switch (newline.Length)
+            switch (_Newline.Length)
             {
                 case 1:
-                    _writer.WriteByte(newline[0]);
+                    _writer.WriteByte(_Newline[0]);
                     break;
                 case 2:
-                    _writer.WriteByte(newline[0]);
-                    _writer.WriteByte(newline[1]);
+                    _writer.WriteByte(_Newline[0]);
+                    _writer.WriteByte(_Newline[1]);
                     break;
                 default:
-                    _writer.Write(newline, 0, newline.Length);
+                    _writer.Write(_Newline, 0, _Newline.Length);
                     break;
             }
             return this;
@@ -298,7 +321,7 @@ namespace blqw.Logger
             {
                 throw new ObjectDisposedException("流已关闭");
             }
-            _writer.WriteByte(space);
+            _writer.WriteByte(_Space);
             return this;
         }
 
@@ -313,7 +336,7 @@ namespace blqw.Logger
             {
                 throw new ObjectDisposedException("流已关闭");
             }
-            _writer.WriteByte(semicolon);
+            _writer.WriteByte(_Semicolon);
             return this;
         }
 
@@ -328,7 +351,7 @@ namespace blqw.Logger
             {
                 throw new ObjectDisposedException("流已关闭");
             }
-            _writer.WriteByte(colon);
+            _writer.WriteByte(_Colon);
             return this;
         }
 
@@ -343,8 +366,16 @@ namespace blqw.Logger
             {
                 throw new ObjectDisposedException("流已关闭");
             }
-            _writer.WriteByte(comma);
+            _writer.WriteByte(_Comma);
             return this;
+        }
+
+        /// <summary>
+        /// 刷新缓存到
+        /// </summary>
+        public void Flush()
+        {
+            _writer?.Flush();
         }
     }
 }

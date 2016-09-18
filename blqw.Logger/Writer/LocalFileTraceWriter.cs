@@ -98,7 +98,6 @@ namespace blqw.Logger
             _writer.Append(line);
             _writer.AppendLine();
             _writer.AppendLine();
-
         }
 
         private string GetString(TraceLevel itemLevel)
@@ -126,14 +125,14 @@ namespace blqw.Logger
             {
                 return;
             }
-            _writer.Append(name, Encoding.UTF8);
+            _writer.Append(name);
             for (var i = 10 - name.Length - 1; i >= 0; i--)
             {
                 _writer.AppendWhiteSpace();
             }
             _writer.AppendColon();
             _writer.AppendWhiteSpace();
-            _writer.Append(value,Encoding.UTF8);
+            _writer.Append(value);
             _writer.AppendLine();
         }
 
@@ -142,7 +141,7 @@ namespace blqw.Logger
         /// </summary>
         public void Flush()
         {
-
+            _writer.Flush();
         }
 
     }

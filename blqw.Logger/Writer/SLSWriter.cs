@@ -275,7 +275,7 @@ namespace blqw.Logger
                     _writer.AppendWhiteSpace();
                 }
             }
-
+            _writer.Flush();
             Logger?.Exit();
         }
 
