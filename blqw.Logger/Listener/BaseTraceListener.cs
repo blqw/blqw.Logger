@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace blqw.Logger
 {
@@ -16,7 +17,23 @@ namespace blqw.Logger
         /// </summary>
         private string _name;
 
-        private volatile WriteQueue _queue;
+        private WriteQueue _queue;
+
+        private WriteQueue Queue
+        {
+            get
+            {
+                if (_queue == null)
+                {
+                    Interlocked.MemoryBarrier();
+                    if (_queue == null)
+                    {
+                        Interlocked.CompareExchange(ref _queue, new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = Logger }, null);
+                    }
+                }
+                return _queue;
+            }
+        }
 
         protected BaseTraceListener()
             : this(null)
@@ -35,13 +52,17 @@ namespace blqw.Logger
 
         private void InternalInitialize()
         {
-            if (_isInitialized) return;
+            if (_isInitialized > 0) return;
+
+            if (Interlocked.Exchange(ref _isInitialized, 1) == 1)
+            {
+                return;
+            }
+
             Initialize();
-            _queue = new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = Logger };
-            _isInitialized = true;
         }
 
-        private bool _isInitialized;
+        private int _isInitialized;
 
         /// <summary>
         /// 初始化
@@ -112,37 +133,43 @@ namespace blqw.Logger
         public override void Flush()
         {
             Logger?.Entry();
-            if (Trace.AutoFlush)
+            try
             {
-                //判断当前方法是否是由于主动调用 .Flush() 触发的
-                if ("Flush".Equals(new StackFrame(1, false).GetMethod().Name, StringComparison.Ordinal))
+                if (Trace.AutoFlush)
                 {
-                    Logger?.Exit();
-                    return;
+                    //判断当前方法是否是由于主动调用 .Flush() 触发的
+                    if ("Flush".Equals(new StackFrame(1, false).GetMethod().Name, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+                }
+
+                var context = new LoggerContext();
+                if (context.Exists)
+                {
+                    Queue.Add(new LogItem
+                    {
+                        LogID = context.LogID,
+                        Time = DateTime.Now,
+                        Level = context.MinLevel,
+                        Module = Name,
+                        IsLast = true
+                    });
+                }
+                else
+                {
+                    Logger?.Log(TraceEventType.Verbose, $"{nameof(LoggerContext)} is null");
                 }
             }
-
-            var context = new LoggerContext();
-            if (context.Exists)
+            finally
             {
-                _queue.Add(new LogItem
-                {
-                    LogID = context.LogID,
-                    Time = DateTime.Now,
-                    Level = context.MinLevel,
-                    Module = Name,
-                    IsLast = true
-                });
+                Logger?.Exit();
+                Logger?.FlushAll();
+                LoggerContext.Clear();
             }
-            else
-            {
-                Logger?.Log(TraceEventType.Verbose, $"{nameof(LoggerContext)} is null");
-            }
-            LoggerContext.Clear();
-            Logger?.Exit();
         }
 
-        private void AddLog(TraceLevel logLevel, string category = null, string message = null, object value = null,
+        protected void AddLog(TraceLevel logLevel, string category = null, string message = null, object value = null,
             string callstack = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0)
         {
             Logger?.Entry(member, line);
@@ -151,7 +178,7 @@ namespace blqw.Logger
             if (context.IsNew)
             {
                 Logger?.Log(TraceEventType.Verbose, "NewLog");
-                _queue.Add(new LogItem
+                Queue.Add(new LogItem
                 {
                     LogID = context.LogID,
                     Time = DateTime.Now,
@@ -162,6 +189,13 @@ namespace blqw.Logger
             else
             {
                 context.MinLevel = logLevel;
+            }
+
+            if (value is LogItem)
+            {
+                Queue.Add((LogItem)value);
+                Logger?.Exit();
+                return;
             }
 
             object content;
@@ -200,7 +234,7 @@ namespace blqw.Logger
             {
                 callstack = new StackTrace(2, true).ToString();
             }
-            _queue.Add(new LogItem
+            Queue.Add(new LogItem
             {
                 LogID = context.LogID,
                 Time = DateTime.Now,
@@ -259,7 +293,7 @@ namespace blqw.Logger
         /// 根据当前事件类型判断是否需要输出日志
         /// </summary>
         /// <param name="eventType"> 事件类型 </param>
-        private bool ShouldTrace(TraceEventType eventType, object value, out TraceLevel traceLevel)
+        protected bool ShouldTrace(TraceEventType eventType, object value, out TraceLevel traceLevel)
         {
             InternalInitialize();
             var level = WritedLevel;
@@ -566,12 +600,17 @@ namespace blqw.Logger
             }
         }
 
-        private static object GetContent(int id, Guid activityID, object data, TraceEventType eventType)
+        protected static object GetContent(int id, Guid activityID, object data, TraceEventType eventType)
         {
-            if (data == null || string.IsNullOrWhiteSpace(data as string))
+            if (data is LogItem)
+            {
+                return data;
+            }
+            if (string.IsNullOrWhiteSpace(data as string))
             {
                 return null;
             }
+
             if (activityID == Guid.Empty)
             {
                 return new { ID = id, EventType = eventType, Data = data };

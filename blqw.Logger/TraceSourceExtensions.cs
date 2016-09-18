@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 
 namespace blqw.Logger
@@ -20,20 +21,7 @@ namespace blqw.Logger
             if (source.Listeners?.Count == 1 && source.Listeners[0] is DefaultTraceListener)
             {
                 source.Listeners.Clear();
-                string dirPath;
-                if (Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)?.ToLowerInvariant() == "bin")
-                {
-                    dirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\blqw.Logger-Logs");
-                }
-                else
-                {
-                    dirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "blqw.Logger-Logs");
-                }
-                if (Directory.Exists(dirPath) == false)
-                {
-                    Directory.CreateDirectory(dirPath);
-                }
-                source.Listeners.Add(new SLSTraceListener(dirPath, null) { Name = nameof(TraceSourceExtensions) });
+                source.Listeners.Add(new LocalFileTraceListener());
             }
             return source;
         }
@@ -63,19 +51,54 @@ namespace blqw.Logger
             }
             try
             {
-                var txt = string.Join(Environment.NewLine,
-                    $"[{type}]: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}",
-                    $"[{member}]: {title}",
-                    $"{file}: {line}",
-                    message);
-                source.TraceEvent(type, 1, txt);
-                if (!Trace.AutoFlush) source.Flush();
+                //source.TraceData(type, 1, "xxx");
+                source.TraceData(type, 1, new LogItem
+                {
+                    Category = GetString(type),
+                    Message = title,
+                    Module = member,
+                    Time = DateTime.Now,
+                    Callstack = $"{file}:{line}",
+                    Content = message,
+                });
             }
             catch (Exception ex)
             {
                 // ignored
             }
         }
+
+        private static string GetString(TraceEventType type)
+        {
+            switch (type)
+            {
+                case TraceEventType.Critical:
+                    return "Critical";
+                case TraceEventType.Error:
+                    return "Error";
+                case TraceEventType.Warning:
+                    return "Warning";
+                case TraceEventType.Information:
+                    return "Information";
+                case TraceEventType.Verbose:
+                    return "Verbose";
+                case TraceEventType.Start:
+                    return "Start";
+                case TraceEventType.Stop:
+                    return "Stop";
+                case TraceEventType.Suspend:
+                    return "Suspend";
+                case TraceEventType.Resume:
+                    return "Resume";
+                case TraceEventType.Transfer:
+                    return "Transfer";
+                default:
+                    return type.ToString();
+            }
+        }
+
+        [ThreadStatic]
+        private static StringBuilder _Buffer;
 
         public static void Entry(this TraceSource source, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
@@ -90,6 +113,22 @@ namespace blqw.Logger
         public static void Exit(this TraceSource source, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
             Log(source, TraceEventType.Stop, $"离开方法 {member}", null, member, line, file);
+        }
+
+        public static void FlushAll(this TraceSource source)
+        {
+            if (source == null || source.Switch.Level == SourceLevels.Off)
+            {
+                return;
+            }
+            try
+            {
+                source.Flush();
+            }
+            catch (Exception ex)
+            {
+                // ignored
+            }
         }
     }
 }

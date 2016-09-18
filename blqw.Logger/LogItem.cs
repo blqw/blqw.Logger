@@ -8,6 +8,8 @@ namespace blqw.Logger
     /// </summary>
     public struct LogItem
     {
+        public bool IsNull { get; private set; }
+        public static readonly LogItem Null = new LogItem() { IsNull = true };
         /// <summary>
         /// 模块名
         /// </summary>

@@ -134,15 +134,11 @@ namespace blqw.Logger
                         Logger?.Exit();
                         return;
                     }
-                    log = default(LogItem);
-                }
-                else if (log.LogID == Guid.Empty) //队列中有对象,但logid是空,则忽略该对象
-                {
-                    continue;
+                    log = LogItem.Null;
                 }
 
                 var runtime = (DateTime.Now - _lastFlushTime).TotalMilliseconds;
-                if (log.LogID == Guid.Empty)
+                if (log.IsNull)
                 {
                     //判断时间边界
                     if (runtime < _batchWaitMilliseconds)

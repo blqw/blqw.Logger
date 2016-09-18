@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Listener\SLSTraceListener.cs" />
+    <Compile Include="Listener\LocalFileTraceListener.cs" />
     <Compile Include="LogItem.cs" />
     <Compile Include="TraceSourceExtensions.cs" />
     <Compile Include="LoggerContext.cs" />
@@ -50,9 +51,11 @@
     <Compile Include="SingletonTask\SingletonTask.cs" />
     <Compile Include="WriteQueue.cs" />
     <Compile Include="Listener\BaseTraceListener.cs" />
+    <Compile Include="Writer\FileWriter.cs" />
     <Compile Include="Writer\IWriter.cs" />
     <Compile Include="Writer\IWriterAsync.cs" />
     <Compile Include="Writer\SLSWriter.cs" />
+    <Compile Include="Writer\LocalFileTraceWriter.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config.install.xdt" />

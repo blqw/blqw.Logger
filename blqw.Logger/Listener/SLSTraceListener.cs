@@ -27,13 +27,7 @@ public sealed class SLSTraceListener : BaseTraceListener
     {
         Logger = TraceSourceExtensions.InternalSource;
     }
-
-    internal SLSTraceListener(string dirPath, TraceSource logger)
-        : base(dirPath)
-    {
-        Logger = logger;
-    }
-
+    
     public override TraceSource Logger { get; }
     
     protected override void Initialize()
@@ -51,7 +45,7 @@ public sealed class SLSTraceListener : BaseTraceListener
     protected override IWriter CreateWriter()
     {
         var dir = InitializeData;
-        dir = Path.Combine(string.IsNullOrWhiteSpace(dir) ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\sls_logs") : dir, Name, "{0:yyyyMMddHH}");
+        dir = Path.Combine(string.IsNullOrWhiteSpace(dir) ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\sls_logs") : dir, Name);
         return new SLSWriter(dir, Logger) { QueueMaxCount = _queueMaxLength };
     }
 
