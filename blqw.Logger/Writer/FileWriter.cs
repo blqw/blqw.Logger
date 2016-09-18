@@ -102,7 +102,6 @@ namespace blqw.Logger
                     if (writer.Position == 0)
                     {
                         writer.Write(_Head, 0, _Head.Length);
-                        Append(Thread.CurrentThread.ManagedThreadId.ToString());
                     }
                     CurrentFilePath = file.FullName;
                     break;
