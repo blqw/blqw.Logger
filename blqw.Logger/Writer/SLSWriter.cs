@@ -203,14 +203,14 @@ namespace blqw.Logger
                 var log = logs[0];
                 _writer.Append(log.Time.ToString("yyyy-MM-dd HH:mm:ss")).AppendComma();
                 _writer.Append(log.LogID.ToString("n")).AppendComma();
-                _writer.Append(log.Level.ToString()).AppendComma();
+                _writer.Append(((int)log.Level).ToString()).AppendComma();
                 _writer.Append(log.Module).AppendComma();
                 for (int i = 1, length = logs.Count; i < length; i++)
                 {
                     log = logs[i];
 
                     _writer.Append(log.Time.ToString("HH:mm:ss.fff")).Append(_CommaBytes);
-                    _writer.Append(log.Level.ToString()).Append(_CommaBytes);
+                    _writer.Append(((int)log.Level).ToString()).Append(_CommaBytes);
                     _writer.Append(DoubleDecode(log.Category)).Append(_CommaBytes);
                     _writer.Append(DoubleDecode(log.Message)).Append(_CommaBytes);
                     _writer.Append(DoubleDecode(log.Callstack)).Append(_CommaBytes);

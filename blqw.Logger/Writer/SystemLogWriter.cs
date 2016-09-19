@@ -136,25 +136,7 @@ namespace blqw.Logger
             _buffer.WriteByte(_Newline[0]);
             if (_Newline.Length == 2) _buffer.WriteByte(_Newline[1]);
         }
-
-        private string GetString(TraceLevel itemLevel)
-        {
-            switch (itemLevel)
-            {
-                case TraceLevel.Off:
-                    return null;
-                case TraceLevel.Error:
-                    return "Error";
-                case TraceLevel.Warning:
-                    return "Warning";
-                case TraceLevel.Info:
-                    return "Info";
-                case TraceLevel.Verbose:
-                    return "Verbose";
-                default:
-                    return itemLevel.ToString();
-            }
-        }
+        
         /// <summary>
         /// 刷新缓存
         /// </summary>
