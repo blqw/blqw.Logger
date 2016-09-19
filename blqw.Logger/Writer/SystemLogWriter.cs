@@ -28,7 +28,7 @@ namespace blqw.Logger
             var logger = Interlocked.Exchange(ref _logger, null);
             logger?.Dispose();
             var buffer = Interlocked.Exchange(ref _buffer, null);
-            buffer?.Dispose();
+            buffer?.Clear();
         }
 
         /// <summary>
@@ -55,12 +55,7 @@ namespace blqw.Logger
         /// 日志跟踪器
         /// </summary>
         public TraceSource Logger { get; set; }
-
-        private static readonly byte[] _ModuleBytes = Encoding.UTF8.GetBytes("Module");
-        private static readonly byte[] _CategoryBytes = Encoding.UTF8.GetBytes("Category");
-        private static readonly byte[] _ContentBytes = Encoding.UTF8.GetBytes("Content");
-        private static readonly byte[] _CallstackBytes = Encoding.UTF8.GetBytes("Callstack");
-        private static readonly byte _SpaceBytes = Encoding.UTF8.GetBytes(" ")[0];
+        
         /// <summary>
         /// 冒号(:)
         /// </summary>
@@ -86,21 +81,18 @@ namespace blqw.Logger
             {
                 return;
             }
-            _buffer.Position = 0;
-            Wirte(_ModuleBytes, item.Module);
-            Wirte(_CategoryBytes, item.Category);
-            Wirte(_ContentBytes, item.Content?.ToString());
-            Wirte(_CallstackBytes, item.Callstack);
-            var raw = _buffer.Position == 0 ? null : _buffer.ToArray();
-            _buffer.Position = 0;
-            if (item.Module == null && item.Message == null)
-            {
-                _logger.WriteEntry("无", GetEntryType(item.Level), 0, (short)item.Level, raw);
-            }
-            else
-            {
-                _logger.WriteEntry($"{item.Module}{Environment.NewLine}{item.Message}", GetEntryType(item.Level), 0, (short)item.Level, raw);
-            }
+            _buffer.Clear();
+            Wirte("LogID", item.LogID.ToString("n"));
+            Wirte("Time", item.Time.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));
+            Wirte("Level", item.Level.ToString());
+            Wirte("Module", item.Module);
+            Wirte("Category", item.Category);
+            Wirte("Message", item.Message);
+            Wirte("Content", item.Content?.ToString());
+            Wirte("Callstack", item.Callstack);
+            var txt = _buffer.ToString();
+            _buffer.Clear();
+            _logger.WriteEntry(txt, GetEntryType(item.Level), 0, 0);
         }
 
         private EventLogEntryType GetEntryType(TraceLevel level)
@@ -116,30 +108,25 @@ namespace blqw.Logger
             }
         }
 
-        private MemoryStream _buffer = new MemoryStream();
+        private StringBuilder _buffer = new StringBuilder();
 
-        private void Wirte(byte[] name, string value)
+        private void Wirte(string name, string value)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
                 return;
             }
-            _buffer.Write(name, 0, name.Length);
-            for (var i = 9 - name.Length; i >= 0; i--)
-            {
-                _buffer.WriteByte(_SpaceBytes);
-            }
-            _buffer.WriteByte(_ColonBytes);
-            _buffer.WriteByte(_SpaceBytes);
-            var bytes = Encoding.UTF8.GetBytes(value);
-            _buffer.Write(bytes, 0, bytes.Length);
-            _buffer.WriteByte(_Newline[0]);
-            if (_Newline.Length == 2) _buffer.WriteByte(_Newline[1]);
+            _buffer.Append(name);
+            _buffer.Append(' ', 9 - name.Length);
+            _buffer.Append(':');
+            _buffer.Append(' ');
+            _buffer.Append(value);
+            _buffer.AppendLine();
         }
-        
+
         /// <summary>
         /// 刷新缓存
         /// </summary>
-        public void Flush() => _buffer?.Flush();
+        public void Flush() { }
     }
 }
