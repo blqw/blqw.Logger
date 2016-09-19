@@ -10,7 +10,6 @@ namespace blqw.Logger
     /// </summary>
     internal sealed class SingletonTask
     {
-        public TraceSource Logger { get; }
         /// <summary>
         /// 健康检查执行时间间隔(秒)
         /// </summary>
@@ -35,6 +34,7 @@ namespace blqw.Logger
         /// 初始化
         /// </summary>
         /// <param name="create"> 创建任务的委托 </param>
+        /// <param name="logger"> 日志跟踪器 </param>
         /// <param name="checkInterval"> 健康检查间隔时间,单位秒(默认30) </param>
         public SingletonTask(Func<ActivityTokenSource, Task> create, TraceSource logger, int checkInterval = 30)
         {
@@ -47,6 +47,11 @@ namespace blqw.Logger
         }
 
         /// <summary>
+        /// 日志跟踪器
+        /// </summary>
+        public TraceSource Logger { get; }
+
+        /// <summary>
         /// 判断任务是否正在执行
         /// </summary>
         public bool IsRunning
@@ -54,7 +59,7 @@ namespace blqw.Logger
             get
             {
                 Logger?.Entry();
-                var b = _taskToken?.CancelIfTimeout();
+                var b = _taskToken?.CancelIfTimeout(); //如果超时,取消任务
                 if (b == null)
                 {
                     Logger?.Return("false");
@@ -75,6 +80,8 @@ namespace blqw.Logger
             }
         }
 
+        public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
+
         /// <summary>
         /// 如果任务没有在执行则执行任务
         /// </summary>
@@ -87,7 +94,7 @@ namespace blqw.Logger
                 return;
             }
 
-            var token = new ActivityTokenSource(10000); //新建一个任务标识,10秒无响应则取消任务
+            var token = new ActivityTokenSource(Timeout); //新建一个任务标识,10秒无响应则取消任务
             //任务标识,如果更新失败,说明其他线程已经更新了,当前线程主动退出
             if (Interlocked.CompareExchange(ref _taskToken, token, null) != null)
             {

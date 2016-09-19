@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading;
 
 namespace blqw.Logger
 {
@@ -12,16 +10,24 @@ namespace blqw.Logger
     /// </summary>
     internal static class TraceSourceExtensions
     {
+        /// <summary>
+        /// 用于本地日志输出的日志跟踪器单例
+        /// </summary>
         public static TraceSource InternalSource { get; } = InitSource();
 
+        /// <summary>
+        /// 初始化日志跟踪器
+        /// </summary>
+        /// <returns></returns>
         private static TraceSource InitSource()
         {
-            var source = new TraceSource("blqw.Logger", SourceLevels.Error);
+            var source = new TraceSource("blqw.InnerLogger", SourceLevels.Error);
 
-            if (source.Listeners?.Count == 1 && source.Listeners[0] is DefaultTraceListener)
+            if ((source.Listeners?.Count == 1) && source.Listeners[0] is DefaultTraceListener)
             {
                 source.Listeners.Clear();
-                source.Listeners.Add(new LocalFileTraceListener());
+                source.Listeners.Add(new LocalFileTraceListener { Name = $"{nameof(blqw)}.InnerLogger-Logs" });
+                //source.Listeners.Add(new SystemLogListener() { Name = "Internal" });
             }
             return source;
         }
@@ -29,7 +35,9 @@ namespace blqw.Logger
         /// <summary>
         /// 输出异常信息
         /// </summary>
-        public static void Error(this TraceSource source, Exception ex, string title = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        public static void Error(this TraceSource source, Exception ex, string title = null,
+            [CallerMemberName] string member = null, [CallerLineNumber] int line = 0,
+            [CallerFilePath] string file = null)
         {
             Log(source, TraceEventType.Error, title, ex.ToString(), member, line, file);
         }
@@ -38,20 +46,21 @@ namespace blqw.Logger
         /// 输出调试信息
         /// </summary>
         /// <param name="type"> </param>
-        /// <param name="title"></param>
-        /// <param name="message"></param>
-        /// <param name="member"></param>
-        /// <param name="line"></param>
-        /// <param name="file"></param>
-        public static void Log(this TraceSource source, TraceEventType type, string title, string message = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        /// <param name="title"> </param>
+        /// <param name="message"> </param>
+        /// <param name="member"> </param>
+        /// <param name="line"> </param>
+        /// <param name="file"> </param>
+        public static void Log(this TraceSource source, TraceEventType type, string title, string message = null,
+            [CallerMemberName] string member = null, [CallerLineNumber] int line = 0,
+            [CallerFilePath] string file = null)
         {
-            if (source == null || source.Switch.ShouldTrace(type) == false)
+            if ((source == null) || (source.Switch.ShouldTrace(type) == false))
             {
                 return;
             }
             try
             {
-                //source.TraceData(type, 1, "xxx");
                 source.TraceData(type, 1, new LogItem
                 {
                     Category = GetString(type),
@@ -60,15 +69,21 @@ namespace blqw.Logger
                     Time = DateTime.Now,
                     Callstack = $"{file}:{line}",
                     Content = message,
+                    LogID = Trace.CorrelationManager.ActivityId
                 });
             }
-            catch (Exception ex)
+            catch
             {
                 // ignored
             }
         }
 
-        private static string GetString(TraceEventType type)
+        /// <summary>
+        /// 获取枚举的字符串形式
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public static string GetString(this TraceEventType type)
         {
             switch (type)
             {
@@ -93,31 +108,44 @@ namespace blqw.Logger
                 case TraceEventType.Transfer:
                     return "Transfer";
                 default:
-                    return type.ToString();
+                    return type.ToString(); //直接ToString 会有反射的性能损耗
             }
         }
 
-        [ThreadStatic]
-        private static StringBuilder _Buffer;
-
-        public static void Entry(this TraceSource source, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        /// <summary>
+        /// 进入方法
+        /// </summary>
+        public static void Entry(this TraceSource source, [CallerMemberName] string member = null,
+            [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
             Log(source, TraceEventType.Start, $"进入方法 {member}", null, member, line, file);
         }
 
-        public static void Return(this TraceSource source, string @return, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        /// <summary>
+        /// 离开方法并有一个返回值
+        /// </summary>
+        public static void Return(this TraceSource source, string @return, [CallerMemberName] string member = null,
+            [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
             Log(source, TraceEventType.Stop, $"离开方法 {member}", $"return {@return}", member, line, file);
         }
 
-        public static void Exit(this TraceSource source, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
+        /// <summary>
+        /// 离开方法
+        /// </summary>
+        public static void Exit(this TraceSource source, [CallerMemberName] string member = null,
+            [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
         {
             Log(source, TraceEventType.Stop, $"离开方法 {member}", null, member, line, file);
         }
 
+        /// <summary>
+        /// 刷新日志
+        /// </summary>
+        /// <param name="source"></param>
         public static void FlushAll(this TraceSource source)
         {
-            if (source == null || source.Switch.Level == SourceLevels.Off)
+            if ((source == null) || (source.Switch.Level == SourceLevels.Off))
             {
                 return;
             }
@@ -125,7 +153,7 @@ namespace blqw.Logger
             {
                 source.Flush();
             }
-            catch (Exception ex)
+            catch// (Exception ex)
             {
                 // ignored
             }

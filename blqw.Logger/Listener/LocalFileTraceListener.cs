@@ -1,15 +1,17 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace blqw.Logger
 {
+    /// <summary>
+    /// 本地日志侦听器
+    /// </summary>
     internal sealed class LocalFileTraceListener : BaseTraceListener
     {
         /// <summary>
         /// 创建一个写入器
         /// </summary>
         /// <returns> </returns>
-        protected override IWriter CreateWriter() => new LocalFileTraceWriter();
+        protected override IWriter CreateWriter() => new LocalFileTraceWriter(Name);
 
         /// <summary>
         /// 向特定于侦听器的输出中写入跟踪信息、数据对象和事件信息。
@@ -32,7 +34,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, data, out traceLevel))
             {
-                AddLog(traceLevel, source, null, GetContent(id, Guid.Empty, data, eventType), null);
+                AppendToQueue(traceLevel, source, eventType.GetString(), data);
             }
         }
     }

@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // 有关程序集的一般信息由以下
 // 控制。更改这些特性值可修改
 // 与程序集关联的信息。
-[assembly: AssemblyTitle("blqw.Logger")]
+[assembly: AssemblyTitle("blqw.InnerLogger")]
 [assembly: AssemblyDescription("基于微软 System.Diagnostics.TraceListener 封装")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("blqw")]
-[assembly: AssemblyProduct("blqw.Logger")]
+[assembly: AssemblyProduct("blqw.InnerLogger")]
 [assembly: AssemblyCopyright("Copyright ©  2016")]
 [assembly: AssemblyTrademark("blqw")]
 [assembly: AssemblyCulture("")]
@@ -38,5 +38,5 @@ using System.Runtime.InteropServices;
 
 internal static class VersionString
 {
-    public const string VERSION = "1.1.0";
+    public const string VERSION = "1.2.0";
 }

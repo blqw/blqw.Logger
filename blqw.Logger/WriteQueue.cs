@@ -110,7 +110,7 @@ namespace blqw.Logger
             Logger?.Entry();
             if (_items.Count >= _queueMaxCount && item.IsLast == false)
             {
-                Logger?.Log(TraceEventType.Error, "日志队列超过最大数量,日志被抛弃", "数量:" + _items.Count);
+                Logger?.Log(TraceEventType.Warning, "日志队列超过最大数量,日志被抛弃", "数量:" + _items.Count);
                 Logger?.Exit();
                 return;
             }

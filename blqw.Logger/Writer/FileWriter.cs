@@ -17,36 +17,71 @@ namespace blqw.Logger
         /// </summary>
         private static long _NextDeleteFileTicks;
 
+        /// <summary>
+        /// 冒号(:)
+        /// </summary>
         private static readonly byte _Colon = Encoding.UTF8.GetBytes(":")[0];
+
+        /// <summary>
+        /// 分号(;)
+        /// </summary>
         private static readonly byte _Semicolon = Encoding.UTF8.GetBytes(";")[0];
+
+        /// <summary>
+        /// 逗号(,)
+        /// </summary>
         private static readonly byte _Comma = Encoding.UTF8.GetBytes(",")[0];
+
+        /// <summary>
+        /// 空格( )
+        /// </summary>
         private static readonly byte _Space = Encoding.UTF8.GetBytes(" ")[0];
+
+        /// <summary>
+        /// 新行(<seealso cref="Environment.NewLine" />)
+        /// </summary>
         private static readonly byte[] _Newline = Encoding.UTF8.GetBytes(Environment.NewLine);
-        private static readonly byte[] _Head = { 239, 187, 191 };
-        private readonly long _filesize;
+
+        /// <summary>
+        /// UTF8格式的txt文件头
+        /// </summary>
+        private static readonly byte[] _Utf8Head = { 239, 187, 191 };
+
+        /// <summary>
+        /// 日志文件限制大小
+        /// </summary>
+        private readonly long _filelimit;
+
+        /// <summary>
+        /// 日志文件所在文件夹路径
+        /// </summary>
         private readonly string _path;
+
+        /// <summary>
+        /// 文件写入器
+        /// </summary>
         private FileStream _writer;
 
         /// <summary>
         /// 初始化文件写入器
         /// </summary>
         /// <param name="path"> 文件默认路径 </param>
-        /// <param name="filesize"> 单个文件大小 </param>
+        /// <param name="filelimit"> 单个文件大小 </param>
         /// <exception cref="ArgumentNullException"> <paramref name="path" /> is <see langword="null" />. </exception>
-        /// <exception cref="ArgumentOutOfRangeException"> <paramref name="filesize" />小于1 </exception>
-        public FileWriter(string path, long filesize)
+        /// <exception cref="ArgumentOutOfRangeException"> <paramref name="filelimit" />小于1 </exception>
+        public FileWriter(string path, long filelimit)
         {
             if (path == null)
             {
                 throw new ArgumentNullException(nameof(path));
             }
-            if (filesize <= 1)
+            if (filelimit <= 1)
             {
-                throw new ArgumentOutOfRangeException(nameof(filesize));
+                throw new ArgumentOutOfRangeException(nameof(filelimit));
             }
             _path = Path.Combine(path, "{0:yyyyMMddHH}");
-            _filesize = filesize;
-            ChangeFile();
+            _filelimit = filelimit;
+            SetNewWirteFile();
         }
 
         /// <summary>
@@ -62,7 +97,6 @@ namespace blqw.Logger
         /// <summary>
         /// 执行与释放或重置非托管资源关联的应用程序定义的任务。
         /// </summary>
-        /// <exception cref="NullReferenceException"> The address of <paramref name="_writer" /> is a null pointer. </exception>
         public void Dispose()
         {
             var writer = Interlocked.Exchange(ref _writer, null);
@@ -77,48 +111,52 @@ namespace blqw.Logger
             writer?.Dispose();
         }
 
-        private void ChangeFile()
+        /// <summary>
+        /// 设置当前写入文件
+        /// </summary>
+        private void SetNewWirteFile()
         {
-            if (SetTomorrow(ref _NextDeleteFileTicks))
+            if (CheckAndSetDeletedFileTime()) //检查时间,判断是否启动删除文件程序
             {
                 Task.Run(() => Delete(2));
             }
+            //获取写入文件夹
             var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, string.Format(_path, DateTime.Now));
+            if (Directory.Exists(path) == false)
+            {
+                Directory.CreateDirectory(path);
+            }
+            //获取最大文件编号
             var max = GetMaxFileNumber(path);
             while (true)
             {
                 var file = GetFile(path, max);
-                if (file.Directory?.Exists == false)
-                {
-                    file.Directory.Create();
-                }
-
                 try
                 {
-                    var writer = new FileStream(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read, (int)_filesize);
+                    var writer = new FileStream(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read,
+                        (int) _filelimit); //尝试打开文件
                     var source = Interlocked.Exchange(ref _writer, writer);
                     source?.Flush();
-                    source?.Dispose();
+                    source?.Dispose(); //释放前一个文件流写入通道
                     if (writer.Position == 0)
                     {
-                        writer.Write(_Head, 0, _Head.Length);
+                        writer.Write(_Utf8Head, 0, _Utf8Head.Length); //如果文件是新的,写入文件头
                     }
                     CurrentFilePath = file.FullName;
                     break;
                 }
                 catch (Exception ex)
                 {
-                    max++;
+                    max++; //如果文件打开失败,忽略这个文件
                     Logger?.Error(ex, $"文件({file.FullName})打开失败");
                 }
-
             }
         }
 
         /// <summary>
         /// 如果文件已满则改变当前文件
         /// </summary>
-        /// <exception cref="ObjectDisposedException">流已关闭</exception>
+        /// <exception cref="ObjectDisposedException"> 流已关闭 </exception>
         public void ChangeFileIfFull()
         {
             Logger?.Entry();
@@ -126,31 +164,30 @@ namespace blqw.Logger
             {
                 throw new ObjectDisposedException("流已关闭");
             }
-            if (_writer.Length < _filesize)
+            if (_writer.Length < _filelimit)
             {
                 Logger?.Exit();
                 return;
             }
-            ChangeFile();
+            SetNewWirteFile();
             Logger?.Exit();
         }
 
         /// <summary>
-        /// 将 <paramref name="ticks"/> 
+        /// 检查并设置删除文件的时间,如果设置成功返回true
         /// </summary>
-        /// <param name="ticks"></param>
-        /// <returns></returns>
-        private bool SetTomorrow(ref long ticks)
+        /// <returns> </returns>
+        private bool CheckAndSetDeletedFileTime()
         {
-            var saved = ticks;
-            var now = DateTime.Today.AddDays(1).Ticks;
-            if (saved >= now)
+            var prev = _NextDeleteFileTicks;
+            var last = DateTime.Today.AddDays(1).Ticks; //时间加1天
+            if (prev >= last)
             {
                 return false;
             }
-            if (Interlocked.CompareExchange(ref ticks, now, saved) == saved)
+            if (Interlocked.CompareExchange(ref _NextDeleteFileTicks, last, prev) == prev) //原子操作
             {
-                return saved < now;
+                return prev < last;
             }
             return false;
         }
@@ -170,7 +207,7 @@ namespace blqw.Logger
                 {
                     return file;
                 }
-                if (file.Length < _filesize) //文件大小没有超过限制
+                if (file.Length < _filelimit) //文件大小没有超过限制
                 {
                     return file;
                 }
@@ -204,23 +241,23 @@ namespace blqw.Logger
         }
 
         /// <summary>
-        /// 
+        /// 删除文件
         /// </summary>
-        /// <param name="days"></param>
+        /// <param name="days"> 删除几天之前的文件 </param>
         private void Delete(int days)
         {
             Logger?.Entry();
             var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, string.Format(_path, DateTime.MinValue));
-            var root = Directory.GetParent(path);
-            if (root.Exists == false)
+            var root = Directory.GetParent(path); //获取父级文件夹
+            if (root.Exists == false) //如果不存在,放弃操作
             {
                 Logger?.Exit();
                 return;
             }
             var time = DateTime.Today.AddDays(-days);
-            foreach (var dir in root.GetDirectories())
+            foreach (var dir in root.GetDirectories()) //遍历文件夹中的所有子文件夹
             {
-                if (dir.LastWriteTime <= time)
+                if (dir.CreationTime <= time) //创建时间小于指定时间则删除
                 {
                     try
                     {
@@ -240,7 +277,6 @@ namespace blqw.Logger
         /// 追加字符串到文件流
         /// </summary>
         /// <param name="text"> 被追加到文件的字符串 </param>
-        /// <param name="encoding"> 字符编码 </param>
         /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
         /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
         /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
@@ -266,14 +302,13 @@ namespace blqw.Logger
         /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
         /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
         /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-
         public FileWriter Append(byte[] buffer)
         {
             if (_writer == null)
             {
                 throw new ObjectDisposedException("流已关闭");
             }
-            if (buffer == null || buffer.Length == 0)
+            if ((buffer == null) || (buffer.Length == 0))
             {
                 return this;
             }
@@ -372,9 +407,8 @@ namespace blqw.Logger
         /// <summary>
         /// 刷新缓存到
         /// </summary>
-        public void Flush()
-        {
-            _writer?.Flush();
-        }
+        /// <exception cref="IOException"> 发生了 I/O 错误。 </exception>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        public void Flush() => _writer?.Flush();
     }
 }

@@ -31,11 +31,11 @@ namespace blqw.Logger
         {
             if (_isInitialized == false)
             {
-                _values = (object[])CallContext.GetData(CONTEXT_FIELD);
+                _values = (object[]) CallContext.GetData(CONTEXT_FIELD);
                 if (_values != null)
                 {
-                    _logId = (Guid)_values[0];
-                    _minLevel = (TraceLevel)_values[1];
+                    _logId = (Guid) _values[0];
+                    _minLevel = (TraceLevel) _values[1];
                     _isNew = false;
                 }
                 else if (create)
@@ -72,7 +72,7 @@ namespace blqw.Logger
             set
             {
                 Initialize();
-                if (_minLevel == 0 || value < _minLevel)
+                if ((_minLevel == 0) || (value < _minLevel))
                 {
                     _values[1] = _minLevel = value;
                 }
@@ -112,7 +112,7 @@ namespace blqw.Logger
                 _isNew = value;
             }
         }
-        
+
         /// <summary>
         /// 是否存在上下文
         /// </summary>

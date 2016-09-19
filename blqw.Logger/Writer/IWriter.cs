@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace blqw.Logger
 {
@@ -16,6 +12,7 @@ namespace blqw.Logger
         /// 批处理最大数量
         /// </summary>
         int BatchMaxCount { get; }
+
         /// <summary>
         /// 批处理最大等待时间
         /// </summary>
@@ -25,17 +22,21 @@ namespace blqw.Logger
         /// 队列最大长度
         /// </summary>
         int QueueMaxCount { get; }
+
         /// <summary>
         /// 写入器名称
         /// </summary>
         string Name { get; }
 
+        /// <summary>
+        /// 日志跟踪器
+        /// </summary>
         TraceSource Logger { get; set; }
 
         /// <summary>
         /// 追加日志
         /// </summary>
-        /// <param name="item"></param>
+        /// <param name="item"> </param>
         void Append(LogItem item);
 
         /// <summary>

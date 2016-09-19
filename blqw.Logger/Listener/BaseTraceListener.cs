@@ -10,31 +10,24 @@ namespace blqw.Logger
     /// </summary>
     public abstract class BaseTraceListener : TraceListener
     {
-        private static readonly char[] _EmptyChars = new char[0];
+        /// <summary>
+        /// 是否已完成初始化操作
+        /// </summary>
+        private int _isInitialized;
 
         /// <summary>
         /// 为Name属性提供值
         /// </summary>
         private string _name;
 
+        /// <summary>
+        /// 写入队列
+        /// </summary>
         private WriteQueue _queue;
 
-        private WriteQueue Queue
-        {
-            get
-            {
-                if (_queue == null)
-                {
-                    Interlocked.MemoryBarrier();
-                    if (_queue == null)
-                    {
-                        Interlocked.CompareExchange(ref _queue, new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = Logger }, null);
-                    }
-                }
-                return _queue;
-            }
-        }
-
+        /// <summary>
+        /// 初始化监听器
+        /// </summary>
         protected BaseTraceListener()
             : this(null)
         {
@@ -50,45 +43,57 @@ namespace blqw.Logger
             WritedLevel = SourceLevels.All;
         }
 
-        private void InternalInitialize()
+        /// <summary>
+        /// 获取用于写入数据的队列,如果不存在则新建
+        /// </summary>
+        private WriteQueue Queue
         {
-            if (_isInitialized > 0) return;
-
-            if (Interlocked.Exchange(ref _isInitialized, 1) == 1)
+            get
             {
-                return;
+                if (_queue != null)
+                {
+                    return _queue;
+                }
+                Interlocked.MemoryBarrier();
+                if (_queue == null)
+                {
+                    Interlocked.CompareExchange(ref _queue,
+                        new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = InnerLogger }, null);
+                }
+                return _queue;
             }
-
-            Initialize();
         }
-
-        private int _isInitialized;
-
-        public int CacheCount => Queue.Count;
-
-        public bool IsSleep => Queue.IsWriting == false;
 
         /// <summary>
-        /// 初始化
+        /// 还没有输出的缓存数量
         /// </summary>
-        protected virtual void Initialize()
-        {
+        public int CacheCount => Queue.Count;
 
-        }
+        /// <summary>
+        /// 队列是否正在休息
+        /// </summary>
+        public bool IsSleep => Queue.IsWriting == false;
+
         /// <summary>
         /// 获取当前线程中的日志跟踪等级
         /// </summary>
         protected virtual SourceLevels WritedLevel { get; }
 
+        /// <summary>
+        /// 初始化数据,在xml中定义,构造函数中传入
+        /// </summary>
         protected string InitializeData { get; }
 
-        public virtual TraceSource Logger { get; }
+        /// <summary>
+        /// 日志记录器
+        /// </summary>
+        protected virtual TraceSource InnerLogger { get; } = null;
 
         /// <summary>
         /// 获取或设置此 <see cref="T:System.Diagnostics.TraceListener" /> 的名称。
         /// </summary>
         /// <exception cref="NotSupportedException" accessor="set"> 当前状态无法设置监听器名称 </exception>
-        /// <exception cref="ArgumentNullException" accessor="set"> <paramref name="Name" /> is <see langword="null" />. </exception>
+        /// <exception cref="ArgumentNullException" accessor="set"> <see cref="Name"/> is <see langword="null" />. </exception>
         public override string Name
         {
             get { return _name; }
@@ -115,6 +120,31 @@ namespace blqw.Logger
         public override bool IsThreadSafe { get; } = true;
 
         /// <summary>
+        /// 初始化方法
+        /// </summary>
+        private void InternalInitialize()
+        {
+            if (_isInitialized > 0)
+            {
+                return;
+            }
+
+            if (Interlocked.Exchange(ref _isInitialized, 1) == 1)
+            {
+                return;
+            }
+
+            Initialize();
+        }
+
+        /// <summary>
+        /// 可用于子类重写的初始化方法
+        /// </summary>
+        protected virtual void Initialize()
+        {
+        }
+
+        /// <summary>
         /// 创建一个写入器
         /// </summary>
         /// <returns> </returns>
@@ -125,10 +155,10 @@ namespace blqw.Logger
         /// </summary>
         public override void Close()
         {
-            Logger?.Entry();
+            InnerLogger?.Entry();
             LoggerContext.Clear();
             Trace.CorrelationManager.ActivityId = Guid.Empty;
-            Logger?.Exit();
+            InnerLogger?.Exit();
         }
 
         /// <summary>
@@ -136,7 +166,7 @@ namespace blqw.Logger
         /// </summary>
         public override void Flush()
         {
-            Logger?.Entry();
+            InnerLogger?.Entry();
             try
             {
                 if (Trace.AutoFlush)
@@ -162,32 +192,48 @@ namespace blqw.Logger
                 }
                 else
                 {
-                    Logger?.Log(TraceEventType.Verbose, $"{nameof(LoggerContext)} is null");
+                    InnerLogger?.Log(TraceEventType.Verbose, $"{nameof(LoggerContext)} is null");
                 }
             }
             finally
             {
-                Logger?.Exit();
-                Logger?.FlushAll();
+                InnerLogger?.Exit();
+                InnerLogger?.FlushAll();
                 LoggerContext.Clear();
             }
         }
 
-        protected void AddLog(TraceLevel logLevel, string category = null, string message = null, object value = null,
+        /// <summary>
+        /// 追加日志到队列
+        /// </summary>
+        /// <param name="logLevel"> 日志等级 </param>
+        /// <param name="category"> 日志类别 </param>
+        /// <param name="message"> 日志消息 </param>
+        /// <param name="value"> 日志正文内容 </param>
+        /// <param name="callstack"> 日志堆栈 </param>
+        /// <param name="member"> 调用当前方法的对象 </param>
+        /// <param name="line"> 调用当前方法的行号 </param>
+        protected void AppendToQueue(TraceLevel logLevel, string category = null, string message = null,
+            object value = null,
             string callstack = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0)
         {
-            Logger?.Entry(member, line);
-            Logger?.Entry();
+            if (member != null)
+            {
+                // ReSharper disable ExplicitCallerInfoArgument
+                InnerLogger?.Entry(member, line);
+                // ReSharper restore ExplicitCallerInfoArgument
+            }
+            InnerLogger?.Entry();
             var context = new LoggerContext();
             if (context.IsNew)
             {
-                Logger?.Log(TraceEventType.Verbose, "NewLog");
+                InnerLogger?.Log(TraceEventType.Verbose, "NewLog");
                 Queue.Add(new LogItem
                 {
                     LogID = context.LogID,
                     Time = DateTime.Now,
                     Module = Name,
-                    IsFirst = true,
+                    IsFirst = true
                 });
             }
             else
@@ -197,8 +243,13 @@ namespace blqw.Logger
 
             if (value is LogItem)
             {
-                Queue.Add((LogItem)value);
-                Logger?.Exit();
+                var item = (LogItem) value;
+                if (item.Level == TraceLevel.Off)
+                {
+                    item.Level = logLevel;
+                }
+                Queue.Add(item);
+                InnerLogger?.Exit();
                 return;
             }
 
@@ -249,7 +300,7 @@ namespace blqw.Logger
                 Message = message,
                 Module = Name
             });
-            Logger?.Exit();
+            InnerLogger?.Exit();
         }
 
         /// <summary>
@@ -297,6 +348,8 @@ namespace blqw.Logger
         /// 根据当前事件类型判断是否需要输出日志
         /// </summary>
         /// <param name="eventType"> 事件类型 </param>
+        /// <param name="value"> 日志正文内容 </param>
+        /// <param name="traceLevel"> 返回日志等级 </param>
         protected bool ShouldTrace(TraceEventType eventType, object value, out TraceLevel traceLevel)
         {
             InternalInitialize();
@@ -314,7 +367,7 @@ namespace blqw.Logger
             }
 
             traceLevel = ConvertToLevel(eventType);
-            return ((int)level & (int)eventType) != 0;
+            return ((int) level & (int) eventType) != 0;
         }
 
         /// <summary>
@@ -334,7 +387,8 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Transfer, null, out traceLevel))
             {
-                AddLog(traceLevel, source, message, null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(traceLevel, source, message, null,
+                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -359,7 +413,8 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, data, out traceLevel))
             {
-                AddLog(traceLevel, source, null, GetContent(id, Guid.Empty, data, eventType), traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(traceLevel, source, null, CheckOrWrapContent(id, data, eventType),
+                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -379,7 +434,8 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, message, null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(traceLevel, source, message, null,
+                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -404,7 +460,9 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, null, GetContent(id, Guid.Empty, string.Join(Environment.NewLine, data), eventType), traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(traceLevel, source, null,
+                    CheckOrWrapContent(id, string.Join(Environment.NewLine, data), eventType),
+                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -427,7 +485,8 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, null, null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(traceLevel, source, null, null,
+                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -457,7 +516,8 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(eventType, null, out traceLevel))
             {
-                AddLog(traceLevel, source, string.Format(format, args), null, traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(traceLevel, source, string.Format(format, args), null,
+                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
             }
         }
 
@@ -472,7 +532,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Error, null, out traceLevel))
             {
-                AddLog(traceLevel, "*Fail*", message);
+                AppendToQueue(traceLevel, "*Fail*", message);
             }
         }
 
@@ -490,7 +550,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Error, null, out traceLevel))
             {
-                AddLog(traceLevel, "*Fail*", message, detailMessage);
+                AppendToQueue(traceLevel, "*Fail*", message, detailMessage);
             }
         }
 
@@ -503,7 +563,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
             {
-                AddLog(traceLevel, null, message, null);
+                AppendToQueue(traceLevel, null, message);
             }
         }
 
@@ -516,7 +576,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
             {
-                AddLog(traceLevel, null, message, null);
+                AppendToQueue(traceLevel, null, message);
             }
         }
 
@@ -529,7 +589,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
             {
-                AddLog(traceLevel, null, null, o);
+                AppendToQueue(traceLevel, null, null, o);
             }
         }
 
@@ -545,7 +605,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
             {
-                AddLog(traceLevel, category, message);
+                AppendToQueue(traceLevel, category, message);
             }
         }
 
@@ -559,7 +619,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
             {
-                AddLog(traceLevel, category, null, o);
+                AppendToQueue(traceLevel, category, null, o);
             }
         }
 
@@ -572,7 +632,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
             {
-                AddLog(traceLevel, null, null, o);
+                AppendToQueue(traceLevel, null, null, o);
             }
         }
 
@@ -586,7 +646,7 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
             {
-                AddLog(traceLevel, category, message);
+                AppendToQueue(traceLevel, category, message);
             }
         }
 
@@ -600,11 +660,18 @@ namespace blqw.Logger
             TraceLevel traceLevel;
             if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
             {
-                AddLog(traceLevel, category, null, o);
+                AppendToQueue(traceLevel, category, null, o);
             }
         }
 
-        protected static object GetContent(int id, Guid activityID, object data, TraceEventType eventType)
+        /// <summary>
+        /// 获取日志内容或包装日志内容
+        /// </summary>
+        /// <param name="id">事件的数值标识符</param>
+        /// <param name="data">日志内容</param>
+        /// <param name="eventType">指定引发跟踪的事件类型</param>
+        /// <returns></returns>
+        protected static object CheckOrWrapContent(int id, object data, TraceEventType eventType)
         {
             if (data is LogItem)
             {
@@ -614,13 +681,12 @@ namespace blqw.Logger
             {
                 return null;
             }
-
+            var activityID = Trace.CorrelationManager.ActivityId;
             if (activityID == Guid.Empty)
             {
                 return new { ID = id, EventType = eventType, Data = data };
             }
             return new { ID = id, EventType = eventType, Data = data, ActivityID = activityID };
         }
-
     }
 }

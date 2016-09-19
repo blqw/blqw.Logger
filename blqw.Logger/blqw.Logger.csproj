@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="Listener\SLSTraceListener.cs" />
     <Compile Include="Listener\LocalFileTraceListener.cs" />
+    <Compile Include="Listener\SystemLogListener.cs" />
     <Compile Include="LogItem.cs" />
     <Compile Include="TraceSourceExtensions.cs" />
     <Compile Include="LoggerContext.cs" />
@@ -57,6 +58,7 @@
     <Compile Include="Writer\IWriter.cs" />
     <Compile Include="Writer\SLSWriter.cs" />
     <Compile Include="Writer\LocalFileTraceWriter.cs" />
+    <Compile Include="Writer\SystemLogWriter.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config.install.xdt" />

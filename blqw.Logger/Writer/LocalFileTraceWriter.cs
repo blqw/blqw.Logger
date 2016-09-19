@@ -1,39 +1,58 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.Caching;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace blqw.Logger
 {
+    /// <summary>
+    /// 本地日志写入器
+    /// </summary>
     public sealed class LocalFileTraceWriter : IWriter
     {
         //单个文件容量阈值
-        private const long DEFAULT_FILE_MAX_SIZE = 5 * 1024 * 1024; //兆
+        private const long DEFAULT_FILE_MAX_SIZE = 5*1024*1024; //兆
+
+        /// <summary>
+        /// 间隔号
+        /// </summary>
+        private static readonly byte[] line = Encoding.UTF8.GetBytes(new string('-', 70));
+
+        private static readonly byte[] _LogIDBytes = Encoding.UTF8.GetBytes("LogID");
+        private static readonly byte[] _TimeBytes = Encoding.UTF8.GetBytes("Time");
+        private static readonly byte[] _LevelBytes = Encoding.UTF8.GetBytes("Level");
+        private static readonly byte[] _ModuleBytes = Encoding.UTF8.GetBytes("Module");
+        private static readonly byte[] _CategoryBytes = Encoding.UTF8.GetBytes("Category");
+        private static readonly byte[] _MessageBytes = Encoding.UTF8.GetBytes("Message");
+        private static readonly byte[] _ContentBytes = Encoding.UTF8.GetBytes("Content");
+        private static readonly byte[] _CallstackBytes = Encoding.UTF8.GetBytes("Callstack");
+
+
+        /// <summary>
+        /// 文件写入器
+        /// </summary>
+        private FileWriter _writer;
 
         /// <summary>
         /// 初始化
         /// </summary>
-        public LocalFileTraceWriter()
+        public LocalFileTraceWriter(string directory)
         {
             string dirPath;
-            if (Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory)?.ToLowerInvariant() == "bin")
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (Path.GetDirectoryName(baseDir)?.ToLowerInvariant() == "bin")
             {
-                dirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"..\\{nameof(blqw)}.Logger-Logs");
+                dirPath = Path.Combine(baseDir, "..", directory);
             }
             else
             {
-                dirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{nameof(blqw)}.Logger-Logs");
+                dirPath = Path.Combine(baseDir, directory);
             }
             if (Directory.Exists(dirPath) == false)
             {
                 Directory.CreateDirectory(dirPath);
             }
-            Name = nameof(LocalFileTraceWriter);
             _writer = new FileWriter(dirPath, DEFAULT_FILE_MAX_SIZE);
         }
 
@@ -64,40 +83,50 @@ namespace blqw.Logger
         /// <summary>
         /// 写入器名称
         /// </summary>
-        public string Name { get; }
+        public string Name => nameof(LocalFileTraceWriter);
 
         public TraceSource Logger
         {
             get { return _writer?.Logger; }
-            set { if (_writer != null) _writer.Logger = value; }
+            set
+            {
+                if (_writer != null)
+                {
+                    _writer.Logger = value;
+                }
+            }
         }
-
-        private static readonly byte[] line = Encoding.UTF8.GetBytes(new string('-', 70));
-
-        private FileWriter _writer;
 
         /// <summary>
         /// 追加日志
         /// </summary>
-        /// <param name="item"> </param>
+        /// <param directory="item"> </param>
         public void Append(LogItem item)
         {
             if (item.IsFirst != item.IsLast)
             {
                 return;
             }
-            _writer.ChangeFileIfFull();
-            Wirte("LogID", item.LogID.ToString());
-            Wirte("Time", item.Time.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));
-            Wirte("Level", GetString(item.Level));
-            Wirte("Module", item.Module);
-            Wirte("Category", item.Category);
-            Wirte("Message", item.Message);
-            Wirte("Content", item.Content?.ToString());
-            Wirte("Callstack", item.Callstack);
+            _writer.ChangeFileIfFull(); //如果文件满了就换一个
+            WirteIfNotNull(_LogIDBytes, item.LogID.ToString()); 
+            WirteIfNotNull(_TimeBytes, item.Time.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));
+            WirteIfNotNull(_LevelBytes, GetString(item.Level));
+            WirteIfNotNull(_ModuleBytes, item.Module);
+            WirteIfNotNull(_CategoryBytes, item.Category);
+            WirteIfNotNull(_MessageBytes, item.Message);
+            WirteIfNotNull(_ContentBytes, item.Content?.ToString());
+            WirteIfNotNull(_CallstackBytes, item.Callstack);
             _writer.Append(line);
             _writer.AppendLine();
             _writer.AppendLine();
+        }
+
+        /// <summary>
+        /// 刷新缓存
+        /// </summary>
+        public void Flush()
+        {
+            _writer.Flush();
         }
 
         private string GetString(TraceLevel itemLevel)
@@ -119,14 +148,14 @@ namespace blqw.Logger
             }
         }
 
-        private void Wirte(string name, string value)
+        private void WirteIfNotNull(byte[] name, string value)
         {
             if (string.IsNullOrWhiteSpace(value))
             {
                 return;
             }
             _writer.Append(name);
-            for (var i = 10 - name.Length - 1; i >= 0; i--)
+            for (var i = 9 - name.Length; i >= 0; i--)
             {
                 _writer.AppendWhiteSpace();
             }
@@ -135,14 +164,5 @@ namespace blqw.Logger
             _writer.Append(value);
             _writer.AppendLine();
         }
-
-        /// <summary>
-        /// 刷新缓存
-        /// </summary>
-        public void Flush()
-        {
-            _writer.Flush();
-        }
-
     }
 }

@@ -2,14 +2,15 @@
 <configuration xmlns:xdt="http://schemas.microsoft.com/XML-Document-Transform">
   <system.diagnostics xdt:Transform="InsertIfMissing">
     <sources xdt:Transform="InsertIfMissing">
-      <source name="blqw.Logger" switchValue="Error"
+      <source name="blqw.InnerLogger" switchValue="Error"
               xdt:Transform="InsertIfMissing"/> <!-- 该节点可删除 -->
     </sources>
     <trace autoflush="false" xdt:Transform="InsertIfMissing">
       <listeners xdt:Transform="InsertIfMissing">
-        <add name="{日志文件夹名称}" type="SLSTraceListener, blqw.Logger"
+        <add name="{日志文件夹名称}" type="SLSTraceListener, blqw.InnerLogger" 
              initializeData="{日志文件路径,可忽略,默认'bin\..\sls_logs'}"
              level="{记录日志的等级,可忽略,默认All,设置值请参考System.Diagnostics.SourceLevels}"
+             queueMaxLength="{缓存队列长度,默认50000000}"
              xdt:Transform="InsertIfMissing" xdt:Locator="Match(type)"/>
       </listeners>
     </trace>

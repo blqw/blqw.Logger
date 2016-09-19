@@ -27,6 +27,12 @@ namespace blqw.Logger
         /// 初始化信号
         /// </summary>
         /// <param name="millisecondsTimeout"> 活动检查超时毫秒 </param>
+        /// <exception cref="OverflowException">
+        /// <paramref name="millisecondsTimeout" /> 是小于 <see cref="F:System.TimeSpan.MinValue" /> 或大于
+        /// <see cref="F:System.TimeSpan.MaxValue" />。- 或 -<paramref name="millisecondsTimeout" /> 为
+        /// <see cref="F:System.Double.PositiveInfinity" />。- 或 -<paramref name="millisecondsTimeout" /> 为
+        /// <see cref="F:System.Double.NegativeInfinity" />。
+        /// </exception>
         public ActivityTokenSource(int millisecondsTimeout)
             : this(TimeSpan.FromMilliseconds(millisecondsTimeout))
         {
@@ -51,6 +57,8 @@ namespace blqw.Logger
         /// 如果任务已经超时则发出一个超时型号
         /// </summary>
         /// <returns> </returns>
+        /// <exception cref="ObjectDisposedException">This <see cref="T:System.Threading.CancellationTokenSource" /> has been disposed.</exception>
+        /// <exception cref="AggregateException">An aggregate exception containing all the exceptions thrown by the registered callbacks on the associated <see cref="T:System.Threading.CancellationToken" />.</exception>
         public bool CancelIfTimeout()
         {
             if (IsCancellationRequested || Token.IsCancellationRequested)

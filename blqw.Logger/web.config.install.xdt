@@ -10,6 +10,7 @@
         <add name="{日志文件夹名称}" type="SLSTraceListener, blqw.Logger"
              initializeData="{日志文件路径,可忽略,默认'bin\..\sls_logs'}"
              level="{记录日志的等级,可忽略,默认All,设置值请参考System.Diagnostics.SourceLevels}"
+             queueMaxLength="{缓存队列长度,默认50000000}"
              xdt:Transform="InsertIfMissing" xdt:Locator="Match(type)"/>
       </listeners>
     </trace>
