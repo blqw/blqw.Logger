@@ -234,6 +234,7 @@ namespace blqw.Logger
                             bytes[j] = _SpaceBytes;
                         }
                     }
+                    _writer.Append(bytes);
                     _writer.AppendWhiteSpace();
                 }
             }
