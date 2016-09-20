@@ -51,8 +51,6 @@ namespace blqw.Logger
         /// </summary>
         private Task _flushTask;
 
-        private int _queueMaxCount = 100000;
-
         private FileWriter _writer;
 
         /// <summary>
@@ -93,27 +91,7 @@ namespace blqw.Logger
         /// 批处理最大等待时间
         /// </summary>
         public TimeSpan BatchMaxWait { get; set; } = TimeSpan.FromSeconds(5);
-
-        /// <summary>
-        /// 队列最大长度
-        /// </summary>
-        public int QueueMaxCount
-        {
-            get { return _queueMaxCount; }
-            set
-            {
-                if (_queueMaxCount <= 0)
-                {
-                    _queueMaxCount = 5000*10000; //默认队列 5000 万
-                }
-                else if (_queueMaxCount < 100*10000)
-                {
-                    _queueMaxCount = 100*10000; //最小队列 100 万
-                }
-                _queueMaxCount = value;
-            }
-        }
-
+        
         /// <summary>
         /// 写入器名称
         /// </summary>

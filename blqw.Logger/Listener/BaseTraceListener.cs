@@ -57,8 +57,7 @@ namespace blqw.Logger
                 Interlocked.MemoryBarrier();
                 if (_queue == null)
                 {
-                    Interlocked.CompareExchange(ref _queue,
-                        new WriteQueue(CreateWriter(), 0, default(TimeSpan), 0) { Logger = InnerLogger }, null);
+                    Interlocked.CompareExchange(ref _queue, CreateQueue(), null);
                 }
                 return _queue;
             }
@@ -145,10 +144,10 @@ namespace blqw.Logger
         }
 
         /// <summary>
-        /// 创建一个写入器
+        /// 创建一个队列
         /// </summary>
         /// <returns> </returns>
-        protected abstract IWriter CreateWriter();
+        protected abstract WriteQueue CreateQueue();
 
         /// <summary>
         /// 关闭监听器，清除所有已记录的日志。
@@ -243,7 +242,7 @@ namespace blqw.Logger
 
             if (value is LogItem)
             {
-                var item = (LogItem) value;
+                var item = (LogItem)value;
                 if (item.Level == TraceLevel.Off)
                 {
                     item.Level = logLevel;
@@ -367,7 +366,7 @@ namespace blqw.Logger
             }
 
             traceLevel = ConvertToLevel(eventType);
-            return ((int) level & (int) eventType) != 0;
+            return ((int)level & (int)eventType) != 0;
         }
 
         /// <summary>

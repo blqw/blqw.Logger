@@ -17,7 +17,7 @@ public sealed class SLSTraceListener : BaseTraceListener
     /// </summary>
     public SLSTraceListener()
     {
-        InnerLogger = TraceSourceExtensions.InternalSource;
+
     }
 
     /// <summary>
@@ -26,14 +26,14 @@ public sealed class SLSTraceListener : BaseTraceListener
     public SLSTraceListener(string initializeData)
         : base(initializeData)
     {
-        InnerLogger = TraceSourceExtensions.InternalSource;
+
     }
 
 
     /// <summary>
     /// 日志记录器
     /// </summary>
-    protected override TraceSource InnerLogger { get; }
+    protected override TraceSource InnerLogger => TraceSourceExtensions.InternalSource;
 
     /// <summary>
     /// 获取当前线程中的日志跟踪等级
@@ -55,11 +55,11 @@ public sealed class SLSTraceListener : BaseTraceListener
 
 
     /// <summary>
-    /// 创建一个写入器
+    /// 创建一个队列
     /// </summary>
     /// <returns> </returns>
     /// <exception cref="AppDomainUnloadedException">该操作尝试对已卸载的应用程序域中。</exception>
-    protected override IWriter CreateWriter()
+    protected override WriteQueue CreateQueue()
     {
         var dir = string.IsNullOrWhiteSpace(InitializeData)
                 ? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..\\sls_logs", Name)
@@ -67,7 +67,16 @@ public sealed class SLSTraceListener : BaseTraceListener
 
         int queueMaxLength;
         int.TryParse(Attributes["queueMaxLength"], out queueMaxLength);
-        return new SLSWriter(dir, InnerLogger) { QueueMaxCount = queueMaxLength };
+        var writer = new SLSWriter(dir, InnerLogger);
+        if (queueMaxLength <= 0)
+        {
+            queueMaxLength = 5000 * 10000; //默认队列 5000 万
+        }
+        else if (queueMaxLength < 100 * 10000)
+        {
+            queueMaxLength = 100 * 10000; //最小队列 100 万
+        }
+        return new WriteQueue(writer, queueMaxLength) { Logger = InnerLogger };
     }
 
 

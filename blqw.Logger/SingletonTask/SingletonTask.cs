@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,12 +15,7 @@ namespace blqw.Logger
         /// 健康检查执行时间间隔(秒)
         /// </summary>
         private readonly int _checkInterval;
-
-        /// <summary>
-        /// 创建可执行任务的委托
-        /// </summary>
-        private readonly Func<ActivityTokenSource, Task> _create;
-
+        
         /// <summary>
         /// 任务的最后执行时间
         /// </summary>
@@ -36,11 +32,10 @@ namespace blqw.Logger
         /// <param name="create"> 创建任务的委托 </param>
         /// <param name="logger"> 日志跟踪器 </param>
         /// <param name="checkInterval"> 健康检查间隔时间,单位秒(默认30) </param>
-        public SingletonTask(Func<ActivityTokenSource, Task> create, TraceSource logger, int checkInterval = 30)
+        public SingletonTask(TraceSource logger, int checkInterval = 30)
         {
             Logger = logger;
             Logger?.Entry();
-            _create = create;
             _checkInterval = checkInterval;
             _lastRunTime = DateTime.MinValue;
             Logger?.Exit();
@@ -106,6 +101,8 @@ namespace blqw.Logger
             Logger?.Exit();
         }
 
+        public event AsyncEventHandler OnRun;
+
         /// <summary>
         /// 执行任务,并在任务退出后更新任务标识
         /// </summary>
@@ -116,7 +113,7 @@ namespace blqw.Logger
             await Task.Delay(1);
             try
             {
-                var task = _create(token);
+                var task = OnRun?.Invoke(token);
                 _lastRunTime = DateTime.Now;
                 await task;
             }

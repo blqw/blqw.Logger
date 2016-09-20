@@ -40,12 +40,7 @@ namespace blqw.Logger
         /// 批处理最大等待时间
         /// </summary>
         public TimeSpan BatchMaxWait { get; }
-
-        /// <summary>
-        /// 队列最大长度
-        /// </summary>
-        public int QueueMaxCount => int.MaxValue;
-
+        
         /// <summary>
         /// 写入器名称
         /// </summary>

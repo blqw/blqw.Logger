@@ -13,14 +13,9 @@ namespace blqw.Logger
     public sealed class SystemLogListener : BaseTraceListener
     {
         /// <summary>
-        /// 创建一个写入器
+        /// 创建一个队列
         /// </summary>
         /// <returns> </returns>
-        protected override IWriter CreateWriter() => new SystemLogWriter("blqw.Logger", Name);
-
-        ///// <summary>
-        ///// 日志记录器
-        ///// </summary>
-        //protected override TraceSource InnerLogger => TraceSourceExtensions.InternalSource;
+        protected override WriteQueue CreateQueue() => new WriteQueue(new SystemLogWriter("blqw.Logger", Name), int.MaxValue);
     }
 }

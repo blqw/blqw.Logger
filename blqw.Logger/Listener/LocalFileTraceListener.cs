@@ -8,10 +8,10 @@ namespace blqw.Logger
     internal sealed class LocalFileTraceListener : BaseTraceListener
     {
         /// <summary>
-        /// 创建一个写入器
+        /// 创建一个队列
         /// </summary>
         /// <returns> </returns>
-        protected override IWriter CreateWriter() => new LocalFileTraceWriter(Name);
+        protected override WriteQueue CreateQueue() => new WriteQueue(new LocalFileTraceWriter(Name), 1000 * 10000);
 
         /// <summary>
         /// 向特定于侦听器的输出中写入跟踪信息、数据对象和事件信息。

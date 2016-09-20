@@ -11,7 +11,7 @@ namespace blqw.Logger
     /// <summary>
     /// 写入队列
     /// </summary>
-    internal class WriteQueue
+    public sealed class WriteQueue
     {
         /// <summary>
         /// 默认批处理最大数量
@@ -68,15 +68,16 @@ namespace blqw.Logger
         /// <param name="batchMaxWait"> </param>
         /// <param name="queueMaxCount"> </param>
         /// <exception cref="ArgumentNullException"><paramref name="writer"/> is <see langword="null" />.</exception>
-        public WriteQueue(IWriter writer, int batchMaxCount, TimeSpan batchMaxWait, int queueMaxCount)
+        public WriteQueue(IWriter writer, int queueMaxCount, int batchMaxCount = 0, TimeSpan batchMaxWait = default(TimeSpan))
         {
             Logger?.Entry();
             if (writer == null) throw new ArgumentNullException(nameof(writer));
             _writer = writer;
-            _task = new SingletonTask(WriteAsync, writer.Logger);
+            _task = new SingletonTask(writer.Logger);
+            _task.OnRun += WriteAsync;
             _batchMaxCount = GetNotDefault(batchMaxCount, _writer.BatchMaxCount, DEFAULT_BATCH_MAX_COUNT);
             _batchWaitMilliseconds = GetNotDefault((int)batchMaxWait.TotalMilliseconds, (int)_writer.BatchMaxWait.TotalMilliseconds, DEFAULT_BATCH_WAIT_MILLISECONDS);
-            _queueMaxCount = GetNotDefault(queueMaxCount, _writer.QueueMaxCount, DEFAULT_QUEUE_MAX_COUNT);
+            _queueMaxCount = GetNotDefault(queueMaxCount, DEFAULT_QUEUE_MAX_COUNT, 0);
             Logger?.Exit();
 
         }

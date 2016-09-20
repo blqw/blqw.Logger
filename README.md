@@ -1,6 +1,9 @@
 # blqw.Logger
 基于微软 System.Diagnostics.TraceListener 封装
 ## 更新日志
+### [v1.2.5] 2016.09.20
+* 优化代码
+
 ### [v1.2.4] 2016.09.19
 * 修复SLS日志索引丢失的问题
 

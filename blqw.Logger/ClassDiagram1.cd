@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="NameAndType">
+  <Class Name="blqw.Logger.BaseTraceListener">
+    <Position X="0.75" Y="0.75" Width="2.5" />
+    <Members>
+      <Field Name="_isInitialized" Hidden="true" />
+      <Field Name="_name" Hidden="true" />
+      <Field Name="_queue" Hidden="true" />
+      <Method Name="BaseTraceListener" Hidden="true" />
+      <Method Name="CheckOrWrapContent" Hidden="true" />
+      <Method Name="ConvertToLevel" Hidden="true" />
+      <Method Name="Initialize" Hidden="true" />
+      <Method Name="InternalInitialize" Hidden="true" />
+      <Method Name="ShouldTrace" Hidden="true" />
+    </Members>
+    <TypeIdentifier>
+      <HashCode>gAACJAQQAAAAAQDIEAAAAAwAQAAAAAICAgwAYAGKAAA=</HashCode>
+      <FileName>Listener\BaseTraceListener.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="Queue" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="blqw.Logger.SingletonTask">
+    <Position X="9" Y="0.75" Width="2.75" />
+    <Members>
+      <Method Name="Run" Hidden="true" />
+      <Method Name="SingletonTask" Hidden="true" />
+    </Members>
+    <TypeIdentifier>
+      <HashCode>gAAAAAAAAAIgAAAAAAAAQAgIAAEAAAIAAAAAAAAAAAI=</HashCode>
+      <FileName>SingletonTask\SingletonTask.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="_taskToken" />
+    </ShowAsAssociation>
+  </Class>
+  <Class Name="blqw.Logger.ActivityTokenSource">
+    <Position X="13.25" Y="0.75" Width="3" />
+    <Members>
+      <Method Name="ActivityTokenSource" Hidden="true" />
+    </Members>
+    <TypeIdentifier>
+      <HashCode>IAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAEAAAAQEAAAAA=</HashCode>
+      <FileName>SingletonTask\ActivityTokenSource.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="blqw.Logger.WriteQueue">
+    <Position X="4.75" Y="0.75" Width="3.25" />
+    <Members>
+      <Field Name="_items" Hidden="true" />
+      <Field Name="DEFAULT_BATCH_MAX_COUNT" Hidden="true" />
+      <Field Name="DEFAULT_BATCH_WAIT_MILLISECONDS" Hidden="true" />
+      <Field Name="DEFAULT_QUEUE_MAX_COUNT" Hidden="true" />
+      <Method Name="GetNotDefault" Hidden="true" />
+      <Method Name="WriteQueue" Hidden="true" />
+    </Members>
+    <TypeIdentifier>
+      <HashCode>AAoAEAAAACIAAAACQAAAAKQQABAAIAAAAAQAAAABAIA=</HashCode>
+      <FileName>WriteQueue.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="_task" />
+    </ShowAsAssociation>
+  </Class>
+  <Font Name="Microsoft YaHei UI" Size="9" />
+</ClassDiagram>

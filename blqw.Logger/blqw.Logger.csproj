@@ -45,6 +45,7 @@
     <Compile Include="Listener\LocalFileTraceListener.cs" />
     <Compile Include="Listener\SystemLogListener.cs" />
     <Compile Include="LogItem.cs" />
+    <Compile Include="SingletonTask\AsyncEventHandler.cs" />
     <Compile Include="TraceSourceExtensions.cs" />
     <Compile Include="LoggerContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -63,6 +64,7 @@
   <ItemGroup>
     <None Include="App.config.install.xdt" />
     <None Include="App.config.uninstall.xdt" />
+    <None Include="ClassDiagram1.cd" />
     <None Include="web.config.install.xdt" />
     <None Include="web.config.uninstall.xdt" />
   </ItemGroup>
