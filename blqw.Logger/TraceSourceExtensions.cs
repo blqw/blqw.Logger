@@ -21,13 +21,13 @@ namespace blqw.Logger
         /// <returns></returns>
         private static TraceSource InitSource()
         {
-            var source = new TraceSource("blqw.InnerLogger", SourceLevels.Error);
+            var source = new TraceSource("blqw.Logger", SourceLevels.Error);
 
             if ((source.Listeners?.Count == 1) && source.Listeners[0] is DefaultTraceListener)
             {
                 source.Listeners.Clear();
                 source.Listeners.Add(new LocalFileTraceListener { Name = $"{nameof(blqw)}.InnerLogger-Logs" });
-                //source.Listeners.Add(new SystemLogListener() { Name = "Internal" });
+                //source.Listeners.Add(new SystemLogTraceListener() { Name = "Internal" });
             }
             return source;
         }

@@ -43,7 +43,7 @@
   <ItemGroup>
     <Compile Include="Listener\SLSTraceListener.cs" />
     <Compile Include="Listener\LocalFileTraceListener.cs" />
-    <Compile Include="Listener\SystemLogListener.cs" />
+    <Compile Include="Listener\SystemLogTraceListener.cs" />
     <Compile Include="LogItem.cs" />
     <Compile Include="SingletonTask\AsyncEventHandler.cs" />
     <Compile Include="TraceSourceExtensions.cs" />

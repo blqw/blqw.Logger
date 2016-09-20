@@ -63,5 +63,45 @@
       <Field Name="_task" />
     </ShowAsAssociation>
   </Class>
+  <Class Name="blqw.Logger.SLSWriter">
+    <Position X="8" Y="4.5" Width="3.25" />
+    <Members>
+      <Field Name="_AssemblyBytes" Hidden="true" />
+      <Field Name="_CommaBytes" Hidden="true" />
+      <Field Name="_DataBytes" Hidden="true" />
+      <Field Name="_DetailBytes" Hidden="true" />
+      <Field Name="_MethodBytes" Hidden="true" />
+      <Field Name="_NewlineBytes" Hidden="true" />
+      <Field Name="_NullBytes" Hidden="true" />
+      <Field Name="_PlusBytes" Hidden="true" />
+      <Field Name="_ReplaceChars" Hidden="true" />
+      <Field Name="_SpaceBytes" Hidden="true" />
+      <Field Name="_SpaceKeysBytes" Hidden="true" />
+      <Field Name="DEFAULT_FILE_MAX_SIZE" Hidden="true" />
+      <Method Name="DoubleDecode" Hidden="true" />
+      <Method Name="Flush" Hidden="true" />
+      <Method Name="SLSWriter" Hidden="true" />
+    </Members>
+    <TypeIdentifier>
+      <HashCode>AAUAAAAAIqIAAAAAoCAgAAYAYAIAAQgAAAAAAAEKAIg=</HashCode>
+      <FileName>Writer\SLSWriter.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Struct Name="blqw.Logger.LoggerContext">
+    <Position X="5" Y="5" Width="2" />
+    <Members>
+      <Field Name="_isInitialized" Hidden="true" />
+      <Field Name="_isNew" Hidden="true" />
+      <Field Name="_logId" Hidden="true" />
+      <Field Name="_minLevel" Hidden="true" />
+      <Field Name="_values" Hidden="true" />
+      <Field Name="CONTEXT_FIELD" Hidden="true" />
+    </Members>
+    <TypeIdentifier>
+      <HashCode>QAAAAAAQAAAAAQCAABAAAAgAAAAAAAAAAEAABIFAACA=</HashCode>
+      <FileName>LoggerContext.cs</FileName>
+    </TypeIdentifier>
+  </Struct>
   <Font Name="Microsoft YaHei UI" Size="9" />
 </ClassDiagram>
