@@ -1,6 +1,10 @@
 # blqw.Logger
 基于微软 System.Diagnostics.TraceListener 封装
 ## 更新日志
+### [v1.2.7] 2016.09.22
+* 修复bug
+* 正式版
+
 ### [v1.2.6] 2016.09.21
 * 优化代码
 * 修复SLS异步刷新异常不会记录的问题

@@ -112,7 +112,7 @@ namespace blqw.Logger
                 return;
             }
             _buffer.Append(name);
-            _buffer.Append(' ', 9 - name.Length);
+            _buffer.Append(' ', 11 - name.Length);
             _buffer.Append(':');
             _buffer.Append(' ');
             _buffer.Append(value);
