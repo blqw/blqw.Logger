@@ -16,19 +16,34 @@ public sealed class SLSTraceListener : BaseTraceListener
     /// 初始化侦听器
     /// </summary>
     public SLSTraceListener()
+        : base(true)
     {
-
+        Initialized += OnInitialized;
     }
 
     /// <summary>
     /// 按照SLS的方式输出日志
     /// </summary>
     public SLSTraceListener(string initializeData)
-        : base(initializeData)
+        : base(true, initializeData)
     {
-
+        Initialized += OnInitialized;
     }
 
+    private void OnInitialized(object sender, EventArgs e)
+    {
+        if (Enum.TryParse(Attributes["level"] ?? "All", true, out _writedLevel) == false)
+        {
+            // ReSharper disable once NotResolvedInText
+            throw new ArgumentOutOfRangeException("level", "level属性值无效,请参考: System.Diagnostics.SourceLevels");
+        }
+    }
+
+    /// <summary>
+    /// 根据当前事件类型判断是否需要输出日志
+    /// </summary>
+    protected override bool ShouldTrace(TraceEventCache cache, string source, TraceEventType eventType, int id, string formatOrMessage,
+        object[] args, object data1, object[] data) => _writedLevel != SourceLevels.Off;
 
     /// <summary>
     /// 日志记录器
@@ -39,20 +54,6 @@ public sealed class SLSTraceListener : BaseTraceListener
     /// 获取当前线程中的日志跟踪等级
     /// </summary>
     protected override SourceLevels WritedLevel => _writedLevel;
-
-    /// <summary>
-    /// 初始化操作
-    /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException">level属性值无效,请参考: <seealso cref="SourceLevels"/></exception>
-    protected override void Initialize()
-    {
-        if (Enum.TryParse(Attributes["level"] ?? "All", true, out _writedLevel) == false)
-        {
-            // ReSharper disable once NotResolvedInText
-            throw new ArgumentOutOfRangeException("level", "level属性值无效,请参考: System.Diagnostics.SourceLevels");
-        }
-    }
-
 
     /// <summary>
     /// 创建一个队列
@@ -67,7 +68,7 @@ public sealed class SLSTraceListener : BaseTraceListener
 
         int queueMaxLength;
         int.TryParse(Attributes["queueMaxLength"], out queueMaxLength);
-        var writer = new SLSWriter(dir, InnerLogger);
+        var writer = new SLSWriter(dir, InnerLogger, WritedLevel);
         if (queueMaxLength <= 0)
         {
             queueMaxLength = 5000 * 10000; //默认队列 5000 万

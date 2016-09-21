@@ -21,7 +21,7 @@ namespace blqw.Logger
         /// <summary>
         /// 模块名
         /// </summary>
-        public string Module { get; internal set; }
+        public string LoggerName { get; internal set; }
 
         /// <summary>
         /// 日志id
@@ -31,23 +31,18 @@ namespace blqw.Logger
         /// <summary>
         /// 日志等级
         /// </summary>
-        public TraceLevel Level { get; internal set; }
+        public TraceEventType Level { get; internal set; }
 
         /// <summary>
         /// 日志标题
         /// </summary>
-        public string Category { get; internal set; }
+        public string Title { get; internal set; }
 
         /// <summary>
         /// 日志时间
         /// </summary>
         public DateTime Time { get; internal set; }
-
-        /// <summary>
-        /// 日志消息
-        /// </summary>
-        public string Message { get; internal set; }
-
+        
         /// <summary>
         /// 日志堆栈
         /// </summary>
@@ -56,7 +51,7 @@ namespace blqw.Logger
         /// <summary>
         /// 日志内容
         /// </summary>
-        public object Content { get; internal set; }
+        public object MessageOrContent { get; internal set; }
 
         /// <summary>
         /// 第一条日志

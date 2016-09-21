@@ -63,12 +63,11 @@ namespace blqw.Logger
             {
                 source.TraceData(type, 1, new LogItem
                 {
-                    Category = GetString(type),
-                    Message = title,
-                    Module = member,
+                    Title = title,
+                    MessageOrContent = message,
+                    LoggerName = source.Name,
                     Time = DateTime.Now,
-                    Callstack = $"{file}:{line}",
-                    Content = message,
+                    Callstack = $"{member}{Environment.NewLine}{file}:{line}",
                     LogID = Trace.CorrelationManager.ActivityId
                 });
             }

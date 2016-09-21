@@ -40,7 +40,7 @@ namespace blqw.Logger
         /// 批处理最大等待时间
         /// </summary>
         public TimeSpan BatchMaxWait { get; }
-        
+
         /// <summary>
         /// 写入器名称
         /// </summary>
@@ -50,7 +50,7 @@ namespace blqw.Logger
         /// 日志跟踪器
         /// </summary>
         public TraceSource Logger { get; set; }
-        
+
         /// <summary>
         /// 冒号(:)
         /// </summary>
@@ -80,23 +80,23 @@ namespace blqw.Logger
             Wirte("LogID", item.LogID.ToString("n"));
             Wirte("Time", item.Time.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));
             Wirte("Level", item.Level.ToString());
-            Wirte("Module", item.Module);
-            Wirte("Category", item.Category);
-            Wirte("Message", item.Message);
-            Wirte("Content", item.Content?.ToString());
+            Wirte("LoggerName", item.LoggerName);
+            Wirte("Title", item.Title);
+            Wirte("Content", item.MessageOrContent?.ToString());
             Wirte("Callstack", item.Callstack);
             var txt = _buffer.ToString();
             _buffer.Clear();
             _logger.WriteEntry(txt, GetEntryType(item.Level), 0, 0);
         }
 
-        private EventLogEntryType GetEntryType(TraceLevel level)
+        private EventLogEntryType GetEntryType(TraceEventType type)
         {
-            switch (level)
+            switch (type)
             {
-                case TraceLevel.Error:
+                case TraceEventType.Critical:
+                case TraceEventType.Error:
                     return EventLogEntryType.Error;
-                case TraceLevel.Warning:
+                case TraceEventType.Warning:
                     return EventLogEntryType.Warning;
                 default:
                     return EventLogEntryType.Information;

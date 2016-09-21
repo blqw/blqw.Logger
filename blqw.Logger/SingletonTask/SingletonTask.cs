@@ -15,7 +15,7 @@ namespace blqw.Logger
         /// 健康检查执行时间间隔(秒)
         /// </summary>
         private readonly int _checkInterval;
-        
+
         /// <summary>
         /// 任务的最后执行时间
         /// </summary>
@@ -114,8 +114,13 @@ namespace blqw.Logger
             try
             {
                 var task = OnRun?.Invoke(token);
+                if (task == null) return;
                 _lastRunTime = DateTime.Now;
                 await task;
+                if (task.Exception != null)
+                {
+                    Logger?.Error(task.Exception, nameof(SingletonTask));
+                }
             }
             catch (Exception ex)
             {

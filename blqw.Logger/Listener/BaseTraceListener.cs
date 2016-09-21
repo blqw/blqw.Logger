@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -8,8 +9,10 @@ namespace blqw.Logger
     /// <summary>
     /// 监听器基础抽象类
     /// </summary>
-    public abstract class BaseTraceListener : TraceListener
+    public abstract class BaseTraceListener : TraceListener, ISupportInitializeNotification
     {
+        private readonly bool _isThreadSafe;
+
         /// <summary>
         /// 是否已完成初始化操作
         /// </summary>
@@ -26,19 +29,12 @@ namespace blqw.Logger
         private WriteQueue _queue;
 
         /// <summary>
-        /// 初始化监听器
-        /// </summary>
-        protected BaseTraceListener()
-            : this(null)
-        {
-        }
-
-        /// <summary>
         /// 以线程为单位记录和输出日志 构造函数
         /// </summary>
         /// <param name="initializeData"> 文件路径 </param>
-        protected BaseTraceListener(string initializeData)
+        protected BaseTraceListener(bool isThreadSafe, string initializeData = null)
         {
+            _isThreadSafe = isThreadSafe;
             InitializeData = initializeData;
             WritedLevel = SourceLevels.All;
         }
@@ -92,7 +88,7 @@ namespace blqw.Logger
         /// 获取或设置此 <see cref="T:System.Diagnostics.TraceListener" /> 的名称。
         /// </summary>
         /// <exception cref="NotSupportedException" accessor="set"> 当前状态无法设置监听器名称 </exception>
-        /// <exception cref="ArgumentNullException" accessor="set"> <see cref="Name"/> is <see langword="null" />. </exception>
+        /// <exception cref="ArgumentNullException" accessor="set"> <see cref="Name" /> is <see langword="null" />. </exception>
         public override string Name
         {
             get { return _name; }
@@ -116,32 +112,60 @@ namespace blqw.Logger
         /// <returns>
         /// 如果跟踪侦听器是线程安全的，则为 true；否则为 false。默认值为 false。
         /// </returns>
-        public override bool IsThreadSafe { get; } = true;
+        public sealed override bool IsThreadSafe
+        {
+            get
+            {
+                Initialize();
+                return _isThreadSafe;
+            }
+        }
+
+        /// <summary>
+        /// 用信号通知对象初始化即将开始。
+        /// </summary>
+        public void BeginInit()
+        {
+        }
+
+        /// <summary>
+        /// 用信号通知对象初始化已完成。
+        /// </summary>
+        public void EndInit()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// 获取一个值，该值指示是否初始化组件。
+        /// </summary>
+        /// <returns> 如果为 true，说明组件已完成初始化；否则为 false。 </returns>
+        public bool IsInitialized => _isInitialized != 0;
+
+        /// <summary>
+        /// 组件初始化完成时出现。
+        /// </summary>
+        public event EventHandler Initialized;
 
         /// <summary>
         /// 初始化方法
         /// </summary>
-        private void InternalInitialize()
+        /// <exception cref="Exception"> A delegate callback throws an exception. </exception>
+        private void Initialize()
         {
             if (_isInitialized > 0)
             {
                 return;
             }
 
-            if (Interlocked.Exchange(ref _isInitialized, 1) == 1)
+            if (Interlocked.Exchange(ref _isInitialized, 1) > 1)
             {
                 return;
             }
 
-            Initialize();
+            Initialized?.Invoke(this, EventArgs.Empty);
         }
 
-        /// <summary>
-        /// 可用于子类重写的初始化方法
-        /// </summary>
-        protected virtual void Initialize()
-        {
-        }
 
         /// <summary>
         /// 创建一个队列
@@ -180,12 +204,13 @@ namespace blqw.Logger
                 var context = new LoggerContext();
                 if (context.Exists)
                 {
+                    InnerLogger?.Log(TraceEventType.Verbose, "EndLog");
                     Queue.Add(new LogItem
                     {
                         LogID = context.LogID,
                         Time = DateTime.Now,
                         Level = context.MinLevel,
-                        Module = Name,
+                        LoggerName = Name,
                         IsLast = true
                     });
                 }
@@ -205,16 +230,13 @@ namespace blqw.Logger
         /// <summary>
         /// 追加日志到队列
         /// </summary>
-        /// <param name="logLevel"> 日志等级 </param>
-        /// <param name="category"> 日志类别 </param>
-        /// <param name="message"> 日志消息 </param>
-        /// <param name="value"> 日志正文内容 </param>
-        /// <param name="callstack"> 日志堆栈 </param>
-        /// <param name="member"> 调用当前方法的对象 </param>
-        /// <param name="line"> 调用当前方法的行号 </param>
-        protected void AppendToQueue(TraceLevel logLevel, string category = null, string message = null,
-            object value = null,
-            string callstack = null, [CallerMemberName] string member = null, [CallerLineNumber] int line = 0)
+        protected void AppendToQueue(
+            TraceEventCache eventCache,
+            TraceEventType eventType,
+            int id,
+            string title,
+            object messageOrContent,
+            [CallerMemberName] string member = null, [CallerLineNumber] int line = 0)
         {
             if (member != null)
             {
@@ -226,148 +248,112 @@ namespace blqw.Logger
             var context = new LoggerContext();
             if (context.IsNew)
             {
-                InnerLogger?.Log(TraceEventType.Verbose, "NewLog");
+                InnerLogger?.Log(TraceEventType.Verbose, "StartLog");
                 Queue.Add(new LogItem
                 {
                     LogID = context.LogID,
                     Time = DateTime.Now,
-                    Module = Name,
+                    LoggerName = Name,
+                    Level = 0,
                     IsFirst = true
                 });
             }
-            else
-            {
-                context.MinLevel = logLevel;
-            }
+            context.MinLevel = eventType;
 
-            if (value is LogItem)
+            if (messageOrContent is LogItem)
             {
-                var item = (LogItem)value;
-                if (item.Level == TraceLevel.Off)
+                var item = (LogItem)messageOrContent;
+                if (item.Level == 0)
                 {
-                    item.Level = logLevel;
+                    item.Level = eventType;
                 }
                 Queue.Add(item);
                 InnerLogger?.Exit();
                 return;
             }
-
-            object content;
-
-            var ex = value as Exception;
-            if (ex != null)
+            if (id != 0)
             {
-                ex.Data["logid"] = context.LogID;
-                category = "*" + category + "*";
-                if (message == null)
+                if (messageOrContent == null)
                 {
-                    message = ex.Message;
+                    messageOrContent = $"id={id}";
                 }
-                content = ex;
-            }
-            else if ((value == null) || ReferenceEquals(message, value))
-            {
-                content = null;
-            }
-            else if ((message == null) && value is string)
-            {
-                message = value.ToString();
-                content = null;
-            }
-            else
-            {
-                if (message == null)
+                else if (messageOrContent is string)
                 {
-                    message = "无";
+                    messageOrContent = $"id={id}; message={messageOrContent}";
                 }
-                content = value;
+                else
+                {
+                    messageOrContent = new { ID = id, Content = messageOrContent };
+                }
             }
+            //object content;
 
-            if (TraceOutputOptions.HasFlag(TraceOptions.Callstack) ||
-                ((callstack == null) && (logLevel == TraceLevel.Error)))
-            {
-                callstack = new StackTrace(2, true).ToString();
-            }
-            Queue.Add(new LogItem
+            //var ex = messageOrContent as Exception;
+            //if (ex != null)
+            //{
+            //    ex.Data["logid"] = context.LogID;
+            //    title = "*" + title + "*";
+            //    if (message == null)
+            //    {
+            //        message = ex.Message;
+            //    }
+            //    content = ex;
+            //}
+            //else if ((value == null) || ReferenceEquals(message, value))
+            //{
+            //    content = null;
+            //}
+            //else if ((message == null) && value is string)
+            //{
+            //    message = value.ToString();
+            //    content = null;
+            //}
+            //else
+            //{
+            //    if (message == null)
+            //    {
+            //        message = "无";
+            //    }
+            //    content = value;
+            //}
+            var log = new LogItem
             {
                 LogID = context.LogID,
                 Time = DateTime.Now,
-                Level = logLevel,
-                Category = category,
-                Content = content,
-                Callstack = callstack,
-                Message = message,
-                Module = Name
-            });
+                Level = eventType,
+                Title = title,
+                MessageOrContent = messageOrContent,
+                LoggerName = Name
+            };
+
+            if (TraceOutputOptions.HasFlag(TraceOptions.Callstack) || (eventType < TraceEventType.Error))
+            {
+                log.Callstack = eventCache?.Callstack ?? new StackTrace(2, true).ToString();
+            }
+
+            Queue.Add(log);
             InnerLogger?.Exit();
         }
 
-        /// <summary>
-        /// 将当前事件类型转换为跟踪等级
-        /// </summary>
-        /// <param name="eventType"> 事件类型 </param>
-        private static TraceLevel ConvertToLevel(TraceEventType eventType)
-        {
-            switch (eventType)
-            {
-                case TraceEventType.Critical:
-                case TraceEventType.Error:
-                    return TraceLevel.Error;
-                case TraceEventType.Information:
-                    return TraceLevel.Info;
-                case TraceEventType.Warning:
-                    return TraceLevel.Warning;
-                case TraceEventType.Resume:
-                case TraceEventType.Start:
-                case TraceEventType.Stop:
-                case TraceEventType.Suspend:
-                case TraceEventType.Transfer:
-                case TraceEventType.Verbose:
-                    return TraceLevel.Verbose;
-                default:
-                    break;
-            }
-
-            if (eventType.HasFlag(TraceEventType.Error) || eventType.HasFlag(TraceEventType.Critical))
-            {
-                return TraceLevel.Error;
-            }
-            if (eventType.HasFlag(TraceEventType.Warning))
-            {
-                return TraceLevel.Warning;
-            }
-            if (eventType.HasFlag(TraceEventType.Information))
-            {
-                return TraceLevel.Info;
-            }
-            return TraceLevel.Verbose;
-        }
 
         /// <summary>
         /// 根据当前事件类型判断是否需要输出日志
         /// </summary>
-        /// <param name="eventType"> 事件类型 </param>
-        /// <param name="value"> 日志正文内容 </param>
-        /// <param name="traceLevel"> 返回日志等级 </param>
-        protected bool ShouldTrace(TraceEventType eventType, object value, out TraceLevel traceLevel)
+        protected virtual bool ShouldTrace(TraceEventCache cache, string source, TraceEventType eventType, int id,
+            string formatOrMessage, object[] args, object data1, object[] data)
         {
-            InternalInitialize();
+            if (Filter != null)
+            {
+                return Filter.ShouldTrace(cache, source, eventType, id, formatOrMessage, args, data1, data);
+            }
             var level = WritedLevel;
             if (level == SourceLevels.Off)
             {
-                traceLevel = TraceLevel.Off;
                 return false;
             }
-
-            if (value is Exception)
-            {
-                traceLevel = TraceLevel.Error;
-                return WritedLevel.HasFlag(SourceLevels.Error);
-            }
-
-            traceLevel = ConvertToLevel(eventType);
             return ((int)level & (int)eventType) != 0;
         }
+
 
         /// <summary>
         /// 向侦听器特定的输出中写入跟踪信息、消息、相关活动标识和事件信息。
@@ -383,11 +369,9 @@ namespace blqw.Logger
         public override void TraceTransfer(TraceEventCache eventCache, string source, int id, string message,
             Guid relatedActivityId)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Transfer, null, out traceLevel))
+            if (ShouldTrace(eventCache, source, TraceEventType.Transfer, id, message, null, null, null))
             {
-                AppendToQueue(traceLevel, source, message, null,
-                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(eventCache, TraceEventType.Transfer, id, source, message);
             }
         }
 
@@ -409,11 +393,9 @@ namespace blqw.Logger
         public override void TraceData(TraceEventCache eventCache, string source, TraceEventType eventType, int id,
             object data)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(eventType, data, out traceLevel))
+            if (ShouldTrace(eventCache, source, eventType, id, null, null, data, null))
             {
-                AppendToQueue(traceLevel, source, null, CheckOrWrapContent(id, data, eventType),
-                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(eventCache, eventType, id, source, data);
             }
         }
 
@@ -430,11 +412,9 @@ namespace blqw.Logger
         public override void TraceEvent(TraceEventCache eventCache, string source, TraceEventType eventType, int id,
             string message)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(eventType, null, out traceLevel))
+            if (ShouldTrace(eventCache, source, eventType, id, message, null, null, null))
             {
-                AppendToQueue(traceLevel, source, message, null,
-                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(eventCache, eventType, id, source, message);
             }
         }
 
@@ -456,12 +436,9 @@ namespace blqw.Logger
         public override void TraceData(TraceEventCache eventCache, string source, TraceEventType eventType, int id,
             params object[] data)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(eventType, null, out traceLevel))
+            if (ShouldTrace(eventCache, source, eventType, id, null, null, null, data))
             {
-                AppendToQueue(traceLevel, source, null,
-                    CheckOrWrapContent(id, string.Join(Environment.NewLine, data), eventType),
-                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(eventCache, eventType, id, source, data?.Length == 1 ? data[0] : data);
             }
         }
 
@@ -481,11 +458,9 @@ namespace blqw.Logger
         /// <param name="id"> 事件的数值标识符。 </param>
         public override void TraceEvent(TraceEventCache eventCache, string source, TraceEventType eventType, int id)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(eventType, null, out traceLevel))
+            if (ShouldTrace(eventCache, source, eventType, id, null, null, null, null))
             {
-                AppendToQueue(traceLevel, source, null, null,
-                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(eventCache, eventType, id, source, null);
             }
         }
 
@@ -512,11 +487,9 @@ namespace blqw.Logger
         public override void TraceEvent(TraceEventCache eventCache, string source, TraceEventType eventType, int id,
             string format, params object[] args)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(eventType, null, out traceLevel))
+            if (ShouldTrace(eventCache, source, eventType, id, format, args, null, null))
             {
-                AppendToQueue(traceLevel, source, string.Format(format, args), null,
-                    traceLevel == TraceLevel.Error ? eventCache.Callstack : null);
+                AppendToQueue(eventCache, eventType, id, source, string.Format(format, args));
             }
         }
 
@@ -528,10 +501,9 @@ namespace blqw.Logger
         /// </param>
         public override void Fail(string message)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Error, null, out traceLevel))
+            if (ShouldTrace(null, null, TraceEventType.Error, 0, message, null, null, null))
             {
-                AppendToQueue(traceLevel, "*Fail*", message);
+                AppendToQueue(null, TraceEventType.Error, 0, null, message);
             }
         }
 
@@ -546,10 +518,10 @@ namespace blqw.Logger
         /// </param>
         public override void Fail(string message, string detailMessage)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Error, null, out traceLevel))
+            message = $"{message}{Environment.NewLine}{detailMessage}";
+            if (ShouldTrace(null, "Fail", TraceEventType.Error, 0, message, null, null, null))
             {
-                AppendToQueue(traceLevel, "*Fail*", message, detailMessage);
+                AppendToQueue(null, TraceEventType.Error, 0, "Fail", message);
             }
         }
 
@@ -559,10 +531,9 @@ namespace blqw.Logger
         /// <param name="message"> 要写入的消息。 </param>
         public override void WriteLine(string message)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
+            if (ShouldTrace(null, "WriteLine", TraceEventType.Verbose, 0, message, null, null, null))
             {
-                AppendToQueue(traceLevel, null, message);
+                AppendToQueue(null, TraceEventType.Verbose, 0, "WriteLine", message);
             }
         }
 
@@ -572,10 +543,9 @@ namespace blqw.Logger
         /// <param name="message"> 要写入的消息。 </param>
         public override void Write(string message)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
+            if (ShouldTrace(null, "Write", TraceEventType.Verbose, 0, message, null, null, null))
             {
-                AppendToQueue(traceLevel, null, message);
+                AppendToQueue(null, TraceEventType.Verbose, 0, "Write", message);
             }
         }
 
@@ -585,10 +555,10 @@ namespace blqw.Logger
         /// <param name="o"> 要为其编写完全限定类名的 <see cref="T:System.Object" />。 </param>
         public override void Write(object o)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
+            var eventType = o is Exception ? TraceEventType.Error : TraceEventType.Verbose;
+            if (ShouldTrace(null, "Write", eventType, 0, null, null, o, null))
             {
-                AppendToQueue(traceLevel, null, null, o);
+                AppendToQueue(null, eventType, 0, "Write", o);
             }
         }
 
@@ -601,10 +571,9 @@ namespace blqw.Logger
         /// <param name="category"> 用于组织输出的类别名称。 </param>
         public override void Write(string message, string category)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
+            if (ShouldTrace(null, category, TraceEventType.Verbose, 0, message, null, null, null))
             {
-                AppendToQueue(traceLevel, category, message);
+                AppendToQueue(null, TraceEventType.Verbose, 0, category, message);
             }
         }
 
@@ -615,10 +584,10 @@ namespace blqw.Logger
         /// <param name="category"> 用于组织输出的类别名称。 </param>
         public override void Write(object o, string category)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
+            var eventType = o is Exception ? TraceEventType.Error : TraceEventType.Verbose;
+            if (ShouldTrace(null, category, eventType, 0, null, null, o, null))
             {
-                AppendToQueue(traceLevel, category, null, o);
+                AppendToQueue(null, eventType, 0, category, o);
             }
         }
 
@@ -628,10 +597,10 @@ namespace blqw.Logger
         /// <param name="o"> 要为其编写完全限定类名的 <see cref="T:System.Object" />。 </param>
         public override void WriteLine(object o)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
+            var eventType = o is Exception ? TraceEventType.Error : TraceEventType.Verbose;
+            if (ShouldTrace(null, "WriteLine", eventType, 0, null, null, o, null))
             {
-                AppendToQueue(traceLevel, null, null, o);
+                AppendToQueue(null, eventType, 0, "WriteLine", o);
             }
         }
 
@@ -642,10 +611,9 @@ namespace blqw.Logger
         /// <param name="category"> 用于组织输出的类别名称。 </param>
         public override void WriteLine(string message, string category)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, null, out traceLevel))
+            if (ShouldTrace(null, category, TraceEventType.Verbose, 0, message, null, null, null))
             {
-                AppendToQueue(traceLevel, category, message);
+                AppendToQueue(null, TraceEventType.Verbose, 0, category, message);
             }
         }
 
@@ -656,36 +624,11 @@ namespace blqw.Logger
         /// <param name="category"> 用于组织输出的类别名称。 </param>
         public override void WriteLine(object o, string category)
         {
-            TraceLevel traceLevel;
-            if (ShouldTrace(TraceEventType.Verbose, o, out traceLevel))
+            var eventType = o is Exception ? TraceEventType.Error : TraceEventType.Verbose;
+            if (ShouldTrace(null, category, eventType, 0, null, null, o, null))
             {
-                AppendToQueue(traceLevel, category, null, o);
+                AppendToQueue(null, eventType, 0, category, o);
             }
-        }
-
-        /// <summary>
-        /// 获取日志内容或包装日志内容
-        /// </summary>
-        /// <param name="id">事件的数值标识符</param>
-        /// <param name="data">日志内容</param>
-        /// <param name="eventType">指定引发跟踪的事件类型</param>
-        /// <returns></returns>
-        protected static object CheckOrWrapContent(int id, object data, TraceEventType eventType)
-        {
-            if (data is LogItem)
-            {
-                return data;
-            }
-            if (string.IsNullOrWhiteSpace(data as string))
-            {
-                return null;
-            }
-            var activityID = Trace.CorrelationManager.ActivityId;
-            if (activityID == Guid.Empty)
-            {
-                return new { ID = id, EventType = eventType, Data = data };
-            }
-            return new { ID = id, EventType = eventType, Data = data, ActivityID = activityID };
         }
     }
 }

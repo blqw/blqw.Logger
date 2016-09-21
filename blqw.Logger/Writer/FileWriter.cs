@@ -410,5 +410,20 @@ namespace blqw.Logger
         /// <exception cref="IOException"> 发生了 I/O 错误。 </exception>
         /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
         public void Flush() => _writer?.Flush();
+
+        /// <summary>
+        /// 追加一个字节
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public FileWriter AppendByte(byte value)
+        {
+            if (_writer == null)
+            {
+                throw new ObjectDisposedException("流已关闭");
+            }
+            _writer.WriteByte(value);
+            return this;
+        }
     }
 }

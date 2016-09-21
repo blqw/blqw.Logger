@@ -12,14 +12,14 @@ namespace blqw.Logger
         /// <summary>
         /// 上下文字段
         /// </summary>
-        private const string CONTEXT_FIELD = "blqw.LoggerContext";
+        private const string CONTEXT_FIELD = "blqw.Logger.LoggerContext";
 
         /// <summary>
         /// 上下文中需要存储的值
         /// </summary>
         private object[] _values;
 
-        private TraceLevel _minLevel;
+        private TraceEventType _minLevel;
         private Guid _logId;
         private bool _isNew;
         private bool _isInitialized;
@@ -35,7 +35,7 @@ namespace blqw.Logger
                 if (_values != null)
                 {
                     _logId = (Guid) _values[0];
-                    _minLevel = (TraceLevel) _values[1];
+                    _minLevel = (TraceEventType) _values[1];
                     _isNew = false;
                 }
                 else if (create)
@@ -62,7 +62,7 @@ namespace blqw.Logger
         /// <summary>
         /// 上下文中的日志最小等级
         /// </summary>
-        public TraceLevel MinLevel
+        public TraceEventType MinLevel
         {
             get
             {
@@ -121,9 +121,6 @@ namespace blqw.Logger
         /// <summary>
         /// 清除上下文
         /// </summary>
-        public static void Clear()
-        {
-            CallContext.FreeNamedDataSlot(CONTEXT_FIELD);
-        }
+        public static void Clear() => CallContext.FreeNamedDataSlot(CONTEXT_FIELD);
     }
 }

@@ -22,9 +22,8 @@ namespace blqw.Logger
         private static readonly byte[] _LogIDBytes = Encoding.UTF8.GetBytes("LogID");
         private static readonly byte[] _TimeBytes = Encoding.UTF8.GetBytes("Time");
         private static readonly byte[] _LevelBytes = Encoding.UTF8.GetBytes("Level");
-        private static readonly byte[] _ModuleBytes = Encoding.UTF8.GetBytes("Module");
-        private static readonly byte[] _CategoryBytes = Encoding.UTF8.GetBytes("Category");
-        private static readonly byte[] _MessageBytes = Encoding.UTF8.GetBytes("Message");
+        private static readonly byte[] _LoggerNameBytes = Encoding.UTF8.GetBytes("LoggerName");
+        private static readonly byte[] _TitleBytes = Encoding.UTF8.GetBytes("Title");
         private static readonly byte[] _ContentBytes = Encoding.UTF8.GetBytes("Content");
         private static readonly byte[] _CallstackBytes = Encoding.UTF8.GetBytes("Callstack");
 
@@ -105,11 +104,10 @@ namespace blqw.Logger
             _writer.ChangeFileIfFull(); //如果文件满了就换一个
             WirteIfNotNull(_LogIDBytes, item.LogID.ToString()); 
             WirteIfNotNull(_TimeBytes, item.Time.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));
-            WirteIfNotNull(_LevelBytes, GetString(item.Level));
-            WirteIfNotNull(_ModuleBytes, item.Module);
-            WirteIfNotNull(_CategoryBytes, item.Category);
-            WirteIfNotNull(_MessageBytes, item.Message);
-            WirteIfNotNull(_ContentBytes, item.Content?.ToString());
+            WirteIfNotNull(_LevelBytes, item.Level.GetString());
+            WirteIfNotNull(_LoggerNameBytes, item.LoggerName);
+            WirteIfNotNull(_TitleBytes, item.Title);
+            WirteIfNotNull(_ContentBytes, item.MessageOrContent?.ToString());
             WirteIfNotNull(_CallstackBytes, item.Callstack);
             _writer.Append(line);
             _writer.AppendLine();
@@ -123,25 +121,7 @@ namespace blqw.Logger
         {
             _writer.Flush();
         }
-
-        private string GetString(TraceLevel itemLevel)
-        {
-            switch (itemLevel)
-            {
-                case TraceLevel.Off:
-                    return null;
-                case TraceLevel.Error:
-                    return "Error";
-                case TraceLevel.Warning:
-                    return "Warning";
-                case TraceLevel.Info:
-                    return "Info";
-                case TraceLevel.Verbose:
-                    return "Verbose";
-                default:
-                    return itemLevel.ToString();
-            }
-        }
+        
 
         private void WirteIfNotNull(byte[] name, string value)
         {

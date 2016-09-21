@@ -7,19 +7,17 @@
       <Field Name="_name" Hidden="true" />
       <Field Name="_queue" Hidden="true" />
       <Method Name="BaseTraceListener" Hidden="true" />
-      <Method Name="CheckOrWrapContent" Hidden="true" />
-      <Method Name="ConvertToLevel" Hidden="true" />
       <Method Name="Initialize" Hidden="true" />
-      <Method Name="InternalInitialize" Hidden="true" />
       <Method Name="ShouldTrace" Hidden="true" />
     </Members>
     <TypeIdentifier>
-      <HashCode>gAACJAQQAAAAAQDIEAAAAAwAQAAAAAICAgwAYAGKAAA=</HashCode>
+      <HashCode>gAACNAQQACAAAQBIEAAAAAwAQAAAAAIAAowAZAGIQAA=</HashCode>
       <FileName>Listener\BaseTraceListener.cs</FileName>
     </TypeIdentifier>
     <ShowAsAssociation>
       <Property Name="Queue" />
     </ShowAsAssociation>
+    <Lollipop Position="0.2" />
   </Class>
   <Class Name="blqw.Logger.SingletonTask">
     <Position X="9" Y="0.75" Width="2.75" />
@@ -83,7 +81,7 @@
       <Method Name="SLSWriter" Hidden="true" />
     </Members>
     <TypeIdentifier>
-      <HashCode>AAUAAAAAIqIAAAAAoCAgAAYAYAIAAQgAAAAAAAEKAIg=</HashCode>
+      <HashCode>AAWAAAAAIqIAAAAAoDAgAEYAYAIAAQgAAAAAIAAKAIg=</HashCode>
       <FileName>Writer\SLSWriter.cs</FileName>
     </TypeIdentifier>
     <Lollipop Position="0.2" />

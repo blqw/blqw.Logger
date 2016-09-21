@@ -166,6 +166,7 @@ namespace blqw.Logger
                         if (task != null)
                         {
                             await task.ConfigureAwait(false);
+                            if (task.Exception != null) throw task.Exception;
                         }
                     }
                     batch++;
@@ -188,6 +189,7 @@ namespace blqw.Logger
                         if (task != null)
                         {
                             await task.ConfigureAwait(false);
+                            if (task.Exception != null) throw task.Exception;
                         }
                     }
                     _lastFlushTime = DateTime.Now; //最后刷新时间

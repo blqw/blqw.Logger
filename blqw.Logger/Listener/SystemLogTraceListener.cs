@@ -13,6 +13,12 @@ using blqw.Logger;
 public sealed class SystemLogTraceListener : BaseTraceListener
 {
     /// <summary>
+    /// 以线程为单位记录和输出日志 构造函数
+    /// </summary>
+    public SystemLogTraceListener() : base(true, null)
+    {
+    }
+    /// <summary>
     /// 创建一个队列
     /// </summary>
     /// <returns> </returns>

@@ -17,7 +17,7 @@ namespace blqw.Logger
     internal class SLSWriter : IWriter, IFlushAsync
     {
         //单个文件容量阈值
-        private const long DEFAULT_FILE_MAX_SIZE = 5*1024*1024; //兆
+        private const long DEFAULT_FILE_MAX_SIZE = 5 * 1024 * 1024; //兆
 
         /// <summary>
         /// 需要转义的字符
@@ -35,6 +35,9 @@ namespace blqw.Logger
         private static readonly byte[] _DetailBytes = Encoding.UTF8.GetBytes("Detail : ");
         private static readonly byte[] _DataBytes = Encoding.UTF8.GetBytes("Data : ");
         private static readonly byte[] _NullBytes = Encoding.UTF8.GetBytes("<null>");
+
+        private static readonly byte[] numberBytes = Encoding.UTF8.GetBytes("0123456789");
+        private readonly SourceLevels _writedLevel;
 
         /// <summary>
         /// 队列
@@ -57,8 +60,11 @@ namespace blqw.Logger
         /// 初始化
         /// </summary>
         /// <param name="dir"> 文件输出路径 </param>
-        public SLSWriter(string dir, TraceSource logger)
+        /// <param name="logger"> </param>
+        /// <param name="writedLevel"> 写入日志的等级 </param>
+        public SLSWriter(string dir, TraceSource logger, SourceLevels writedLevel)
         {
+            _writedLevel = writedLevel;
             Logger = logger;
             _cache = new MemoryCache(Guid.NewGuid().ToString());
             Name = dir;
@@ -77,7 +83,17 @@ namespace blqw.Logger
             {
                 await _flushTask;
             }
-            _flushTask = Task.Factory.StartNew(Flush, token);
+            _flushTask = Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    Flush();
+                }
+                catch (Exception ex)
+                {
+                    Logger?.Error(ex);
+                }
+            }, token);
         }
 
         public TraceSource Logger { get; set; }
@@ -91,7 +107,7 @@ namespace blqw.Logger
         /// 批处理最大等待时间
         /// </summary>
         public TimeSpan BatchMaxWait { get; set; } = TimeSpan.FromSeconds(5);
-        
+
         /// <summary>
         /// 写入器名称
         /// </summary>
@@ -170,29 +186,38 @@ namespace blqw.Logger
             List<LogItem> logs;
             while (Queue.TryDequeue(out logs))
             {
-                _writer.ChangeFileIfFull();
                 if ((logs == null) || (logs.Count == 0))
                 {
                     Logger?.Exit();
                     return;
                 }
-
-                _writer.AppendLine();
                 var log = logs[0];
+                if (((int)_writedLevel & (int)log.Level) == 0)
+                {
+                    continue;
+                }
+
+                _writer.ChangeFileIfFull();
+                _writer.AppendLine();
                 _writer.Append(log.Time.ToString("yyyy-MM-dd HH:mm:ss")).AppendComma();
                 _writer.Append(log.LogID.ToString("n")).AppendComma();
-                _writer.Append(((int)log.Level).ToString()).AppendComma();
-                _writer.Append(log.Module).AppendComma();
+                WriteLevel(log.Level);
+                _writer.AppendComma();
+                _writer.Append(log.LoggerName).AppendComma();
                 for (int i = 1, length = logs.Count; i < length; i++)
                 {
                     log = logs[i];
-
+                    var message = log.MessageOrContent as string;
                     _writer.Append(log.Time.ToString("HH:mm:ss.fff")).Append(_CommaBytes);
-                    _writer.Append(((int)log.Level).ToString()).Append(_CommaBytes);
-                    _writer.Append(DoubleDecode(log.Category)).Append(_CommaBytes);
-                    _writer.Append(DoubleDecode(log.Message)).Append(_CommaBytes);
+                    WriteLevel(log.Level);
+                    _writer.Append(_CommaBytes);
+                    _writer.Append(DoubleDecode(log.Title)).Append(_CommaBytes);
+                    _writer.Append(DoubleDecode(message ?? "无")).Append(_CommaBytes);
                     _writer.Append(DoubleDecode(log.Callstack)).Append(_CommaBytes);
-                    Write(log.Content);
+                    if (message == null)
+                    {
+                        WriteContent(log.MessageOrContent);
+                    }
                     _writer.Append(_NewlineBytes);
                 }
                 _writer.AppendComma();
@@ -200,11 +225,12 @@ namespace blqw.Logger
                 for (int i = 1, length = logs.Count; i < length; i++)
                 {
                     log = logs[i];
-                    if (string.IsNullOrWhiteSpace(log.Message))
+                    var message = log.MessageOrContent as string;
+                    if (string.IsNullOrWhiteSpace(message))
                     {
                         continue;
                     }
-                    var bytes = Encoding.UTF8.GetBytes(log.Message);
+                    var bytes = Encoding.UTF8.GetBytes(message);
                     for (int j = 0, l = bytes.Length; j < l; j++)
                     {
                         if (_SpaceKeysBytes.Contains(bytes[j]))
@@ -218,6 +244,32 @@ namespace blqw.Logger
             }
             _writer.Flush();
             Logger?.Exit();
+        }
+
+        private void WriteLevel(TraceEventType logLevel)
+        {
+            switch (logLevel)
+            {
+                case TraceEventType.Critical:
+                case TraceEventType.Error:
+                    _writer.AppendByte(numberBytes[1]);
+                    break;
+                case TraceEventType.Warning:
+                    _writer.AppendByte(numberBytes[2]);
+                    break;
+                case TraceEventType.Information:
+                    _writer.AppendByte(numberBytes[3]);
+                    break;
+                case TraceEventType.Verbose:
+                case TraceEventType.Start:
+                case TraceEventType.Stop:
+                case TraceEventType.Suspend:
+                case TraceEventType.Resume:
+                case TraceEventType.Transfer:
+                default:
+                    _writer.AppendByte(numberBytes[4]);
+                    break;
+            }
         }
 
         /// <summary>
@@ -262,8 +314,8 @@ namespace blqw.Logger
         /// <summary>
         /// 写入日志正文
         /// </summary>
-        /// <param name="content"></param>
-        private void Write(object content)
+        /// <param name="content"> </param>
+        private void WriteContent(object content)
         {
             var ex = content as Exception;
             if (ex == null)
