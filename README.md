@@ -34,6 +34,40 @@
 内存峰值:2700Mb 日志量:2.64G 文件数:539 硬盘写入:11mb/秒  
 写入日志:20万条/s
 
+## logstash2.2.2
+cvs.conf
+``` 
+input {
+    file {
+        type => "csv_log_1"
+        path => ["根据web.config中日志的输出位置填写/*/*/*.log"]
+        start_position => "beginning"
+    }
+}
+filter {
+    if [type] == "csv_log_1" {
+        csv {
+            separator => ","
+            columns => ["time", "uid", "level", "topic", "content", "search"]
+        } 
+    }
+}
+output {
+    if [type] == "csv_log_1" {
+        logservice {
+            codec => "json"
+            endpoint => "cn-hangzhou-vpc.log.aliyuncs.com" //可能会有变化
+            project => "webapi-log2" //可能会有变化
+            logstore => "cvs_log" //可能会有变化
+            topic => ""
+            source => ""
+            access_key_id => "根据实际情况填写"
+            access_key_secret => "根据实际情况填写"
+            max_send_retry => 10
+        }
+    }
+}
+```
 ## 更新日志
 ### [v1.2.7] 2016.09.22
 * 修复bug
