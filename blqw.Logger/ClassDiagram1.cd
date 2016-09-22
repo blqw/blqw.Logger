@@ -78,7 +78,10 @@
       <Field Name="DEFAULT_FILE_MAX_SIZE" Hidden="true" />
       <Method Name="DoubleDecode" Hidden="true" />
       <Method Name="Flush" Hidden="true" />
+      <Field Name="numberBytes" Hidden="true" />
       <Method Name="SLSWriter" Hidden="true" />
+      <Method Name="WriteContent" Hidden="true" />
+      <Method Name="WriteLevel" Hidden="true" />
     </Members>
     <TypeIdentifier>
       <HashCode>AAWAAAAAIqIAAAAAoDAgAEYAYAIAAQgAAAAAIAAKAIg=</HashCode>
@@ -87,7 +90,7 @@
     <Lollipop Position="0.2" />
   </Class>
   <Struct Name="blqw.Logger.LoggerContext">
-    <Position X="5" Y="5" Width="2" />
+    <Position X="5" Y="5" Width="2.25" />
     <Members>
       <Field Name="_isInitialized" Hidden="true" />
       <Field Name="_isNew" Hidden="true" />
@@ -101,5 +104,12 @@
       <FileName>LoggerContext.cs</FileName>
     </TypeIdentifier>
   </Struct>
+  <Interface Name="blqw.Logger.IWriter">
+    <Position X="11.75" Y="4.5" Width="2" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAACIAAAAAAAAAAAQAIAAAAQAAAAAAAAAIAAA=</HashCode>
+      <FileName>Writer\IWriter.cs</FileName>
+    </TypeIdentifier>
+  </Interface>
   <Font Name="Microsoft YaHei UI" Size="9" />
 </ClassDiagram>
