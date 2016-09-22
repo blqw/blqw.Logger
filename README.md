@@ -1,5 +1,39 @@
 # blqw.Logger
 基于微软 System.Diagnostics.TraceListener 封装
+
+```xml
+<system.diagnostics>
+  <sources>
+    <source name="blqw.Logger" switchValue="Warning"> <!-- 修改组件本身异常记录的跟踪,可以忽略, switchValue默认为Error -->
+      <listeners> <!-- 默认组件自身异常记录到本地文件,此处修改默认行为 -->
+        <clear />
+        <add name="blqw.Logger" type="SystemLogTraceListener, blqw.Logger" />  <!-- 写入系统事件,需要管理员权限 -->
+      </listeners>
+    </source>
+  </sources>
+  <trace autoflush="false" useGlobalLock="false">
+    <listeners>
+      <clear /> <!-- 清除默认侦听器 -->
+      <add name"logger1" type="SLSTraceListener, blqw.Logger" initializeData="d:\sls2_logs" queueMaxLength="50000000" level="Error" />
+      <!--
+          type : 侦听器类型,固定为SLSTraceListener, blqw.Logger(必须)
+          initializeData : 日志文件记录位置(必须)
+          queueMaxLength : 最大缓存队列长度(选填,默认50000000)
+          level : 跟踪日志等级(选填,默认为All,可选值参考System.Diagnostics.SourceLevels属性)
+       -->
+    </listeners>
+  </trace>
+</system.diagnostics>
+```
+
+## 性能
+本地测试500线程 每个线程循环1000次 每次写入100条日 共5000万条日志  
+测试机配置: i7 6700k 内存ddr4 3200 32G 硬盘 希捷 1T w:100,r:150 ,缓存队列 5000万  
+压入日志耗时:73s 全部写完耗时:250s  
+压入日志CPU:50\~60% 写日志CPU:20\~30%  
+内存峰值:2700Mb 日志量:2.64G 文件数:539 硬盘写入:11mb/秒  
+写入日志:20万条/s
+
 ## 更新日志
 ### [v1.2.7] 2016.09.22
 * 修复bug
