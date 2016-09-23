@@ -236,6 +236,7 @@ namespace blqw.Logger
             int id,
             string title,
             object messageOrContent,
+            object[] datas = null,
             [CallerMemberName] string member = null, [CallerLineNumber] int line = 0)
         {
             if (member != null)
@@ -281,57 +282,63 @@ namespace blqw.Logger
                 {
                     messageOrContent = $"id={id}; message={messageOrContent}";
                 }
-                else
+            }
+
+            if (id != 0)
+            {
+                title = $"{id}:{title}";
+            }
+
+
+
+            if (datas == null)
+            {
+                var log = new LogItem
                 {
-                    messageOrContent = new { ID = id, Content = messageOrContent };
+                    LogID = context.LogID,
+                    Time = DateTime.Now,
+                    Level = eventType,
+                    Title = title,
+                    MessageOrContent = messageOrContent,
+                    LoggerName = Name
+                };
+
+                if (TraceOutputOptions.HasFlag(TraceOptions.Callstack) || (eventType < TraceEventType.Error))
+                {
+                    log.Callstack = eventCache?.Callstack ?? new StackTrace(2, true).ToString();
+                }
+
+                Queue.Add(log);
+            }
+            else
+            {
+                var length = datas.Length;
+                var log = new LogItem
+                {
+                    LogID = context.LogID,
+                    Time = DateTime.Now,
+                    Level = eventType,
+                    Title = title,
+                    MessageOrContent = $"contents:{length}",
+                    LoggerName = Name
+                };
+                Queue.Add(log);
+                for (int i = 0; i < length; i++)
+                {
+                    log = new LogItem
+                    {
+                        LogID = context.LogID,
+                        Time = DateTime.Now,
+                        Level = eventType,
+                        Title = i.ToString(),
+                        MessageOrContent = datas[i],
+                        LoggerName = Name
+                    };
+                    Queue.Add(log);
                 }
             }
-            //object content;
 
-            //var ex = messageOrContent as Exception;
-            //if (ex != null)
-            //{
-            //    ex.Data["logid"] = context.LogID;
-            //    title = "*" + title + "*";
-            //    if (message == null)
-            //    {
-            //        message = ex.Message;
-            //    }
-            //    content = ex;
-            //}
-            //else if ((value == null) || ReferenceEquals(message, value))
-            //{
-            //    content = null;
-            //}
-            //else if ((message == null) && value is string)
-            //{
-            //    message = value.ToString();
-            //    content = null;
-            //}
-            //else
-            //{
-            //    if (message == null)
-            //    {
-            //        message = "无";
-            //    }
-            //    content = value;
-            //}
-            var log = new LogItem
-            {
-                LogID = context.LogID,
-                Time = DateTime.Now,
-                Level = eventType,
-                Title = title,
-                MessageOrContent = messageOrContent,
-                LoggerName = Name
-            };
 
-            if (TraceOutputOptions.HasFlag(TraceOptions.Callstack) || (eventType < TraceEventType.Error))
-            {
-                log.Callstack = eventCache?.Callstack ?? new StackTrace(2, true).ToString();
-            }
-
-            Queue.Add(log);
             InnerLogger?.Exit();
         }
 

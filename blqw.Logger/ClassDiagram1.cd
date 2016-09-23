@@ -1,24 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="NameAndType">
-  <Class Name="blqw.Logger.BaseTraceListener">
-    <Position X="0.75" Y="0.75" Width="2.5" />
-    <Members>
-      <Field Name="_isInitialized" Hidden="true" />
-      <Field Name="_name" Hidden="true" />
-      <Field Name="_queue" Hidden="true" />
-      <Method Name="BaseTraceListener" Hidden="true" />
-      <Method Name="Initialize" Hidden="true" />
-      <Method Name="ShouldTrace" Hidden="true" />
-    </Members>
-    <TypeIdentifier>
-      <HashCode>gAACNAQQACAAAQBIEAAAAAwAQAAAAAIAAowAZAGIQAA=</HashCode>
-      <FileName>Listener\BaseTraceListener.cs</FileName>
-    </TypeIdentifier>
-    <ShowAsAssociation>
-      <Property Name="Queue" />
-    </ShowAsAssociation>
-    <Lollipop Position="0.2" />
-  </Class>
   <Class Name="blqw.Logger.SingletonTask">
     <Position X="9" Y="0.75" Width="2.75" />
     <Members>
@@ -87,6 +68,25 @@
       <HashCode>AAWAAAAAIqIAAAAAoDAgAEYAYAIAAQgAAAAAIAAKAIg=</HashCode>
       <FileName>Writer\SLSWriter.cs</FileName>
     </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="blqw.Logger.BaseTraceListener">
+    <Position X="0.75" Y="0.75" Width="2.5" />
+    <Members>
+      <Field Name="_isInitialized" Hidden="true" />
+      <Field Name="_name" Hidden="true" />
+      <Field Name="_queue" Hidden="true" />
+      <Method Name="BaseTraceListener" Hidden="true" />
+      <Method Name="Initialize" Hidden="true" />
+      <Method Name="ShouldTrace" Hidden="true" />
+    </Members>
+    <TypeIdentifier>
+      <HashCode>gAACNAQQACAAAQBIEAAAAAwAQAAAAAIAAowAZAGIQAA=</HashCode>
+      <FileName>Listener\BaseTraceListener.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="Queue" />
+    </ShowAsAssociation>
     <Lollipop Position="0.2" />
   </Class>
   <Struct Name="blqw.Logger.LoggerContext">
