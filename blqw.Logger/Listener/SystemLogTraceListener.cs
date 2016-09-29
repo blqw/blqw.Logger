@@ -22,6 +22,6 @@ public sealed class SystemLogTraceListener : BaseTraceListener
     /// 创建一个队列
     /// </summary>
     /// <returns> </returns>
-    protected override WriteQueue CreateQueue() => new WriteQueue(new SystemLogWriter("blqw.Logger", Name), int.MaxValue);
+    protected override WriteQueue CreateQueue() => new WriteQueue(new SystemLogWriter("blqw.Logger", Name), int.MaxValue) { Logger = InnerLogger };
 }
 

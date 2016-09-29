@@ -28,7 +28,7 @@ namespace blqw.Logger
         /// </summary>
         public const int DEFAULT_QUEUE_MAX_COUNT = 100000; //条
 
-        public TraceSource Logger { get; set; } = TraceSourceExtensions.InternalSource;
+        public TraceSource Logger { get; set; }
 
         /// <summary>
         /// 批处理最大数量

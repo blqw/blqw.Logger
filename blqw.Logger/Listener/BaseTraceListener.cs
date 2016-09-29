@@ -9,15 +9,8 @@ namespace blqw.Logger
     /// <summary>
     /// 监听器基础抽象类
     /// </summary>
-    public abstract class BaseTraceListener : TraceListener, ISupportInitializeNotification
+    public abstract class BaseTraceListener : TraceListener
     {
-        private readonly bool _isThreadSafe;
-
-        /// <summary>
-        /// 是否已完成初始化操作
-        /// </summary>
-        private int _isInitialized;
-
         /// <summary>
         /// 为Name属性提供值
         /// </summary>
@@ -34,7 +27,7 @@ namespace blqw.Logger
         /// <param name="initializeData"> 文件路径 </param>
         protected BaseTraceListener(bool isThreadSafe, string initializeData = null)
         {
-            _isThreadSafe = isThreadSafe;
+            IsThreadSafe = isThreadSafe;
             InitializeData = initializeData;
             WritedLevel = SourceLevels.All;
         }
@@ -82,7 +75,7 @@ namespace blqw.Logger
         /// <summary>
         /// 日志记录器
         /// </summary>
-        protected virtual TraceSource InnerLogger { get; } = null;
+        public TraceSource InnerLogger { get; set; }
 
         /// <summary>
         /// 获取或设置此 <see cref="T:System.Diagnostics.TraceListener" /> 的名称。
@@ -112,61 +105,8 @@ namespace blqw.Logger
         /// <returns>
         /// 如果跟踪侦听器是线程安全的，则为 true；否则为 false。默认值为 false。
         /// </returns>
-        public sealed override bool IsThreadSafe
-        {
-            get
-            {
-                Initialize();
-                return _isThreadSafe;
-            }
-        }
-
-        /// <summary>
-        /// 用信号通知对象初始化即将开始。
-        /// </summary>
-        public void BeginInit()
-        {
-        }
-
-        /// <summary>
-        /// 用信号通知对象初始化已完成。
-        /// </summary>
-        public void EndInit()
-        {
-            Initialize();
-        }
-
-        /// <summary>
-        /// 获取一个值，该值指示是否初始化组件。
-        /// </summary>
-        /// <returns> 如果为 true，说明组件已完成初始化；否则为 false。 </returns>
-        public bool IsInitialized => _isInitialized != 0;
-
-        /// <summary>
-        /// 组件初始化完成时出现。
-        /// </summary>
-        public event EventHandler Initialized;
-
-        /// <summary>
-        /// 初始化方法
-        /// </summary>
-        /// <exception cref="Exception"> A delegate callback throws an exception. </exception>
-        private void Initialize()
-        {
-            if (_isInitialized > 0)
-            {
-                return;
-            }
-
-            if (Interlocked.Exchange(ref _isInitialized, 1) > 1)
-            {
-                return;
-            }
-
-            Initialized?.Invoke(this, EventArgs.Empty);
-        }
-
-
+        public sealed override bool IsThreadSafe { get; }
+        
         /// <summary>
         /// 创建一个队列
         /// </summary>
@@ -303,7 +243,7 @@ namespace blqw.Logger
                     LoggerName = Name
                 };
 
-                if (TraceOutputOptions.HasFlag(TraceOptions.Callstack) || (eventType < TraceEventType.Error))
+                if (TraceOutputOptions.HasFlag(TraceOptions.Callstack) || (eventType <= TraceEventType.Error))
                 {
                     log.Callstack = eventCache?.Callstack ?? new StackTrace(2, true).ToString();
                 }

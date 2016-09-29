@@ -26,6 +26,7 @@ namespace blqw.Logger
 
         private static readonly byte[] _CommaBytes = Encoding.UTF8.GetBytes("%2C");
         private static readonly byte[] _NewlineBytes = Encoding.UTF8.GetBytes("%0D%0A");
+        private static readonly byte[] _NewlineBytes2 = Encoding.UTF8.GetBytes("%250D%250A");
         private static readonly HashSet<byte> _SpaceKeysBytes = new HashSet<byte>(Encoding.UTF8.GetBytes("\r\n,\"\'"));
         private static readonly byte _SpaceBytes = Encoding.UTF8.GetBytes(" ")[0];
 
@@ -324,22 +325,22 @@ namespace blqw.Logger
                 return;
             }
 
-            _writer.Append(_AssemblyBytes).Append(_NewlineBytes);
+            _writer.Append(_AssemblyBytes).Append(_NewlineBytes2);
             _writer.Append(DoubleDecode(ex.GetType().AssemblyQualifiedName));
             if (ex.TargetSite != null)
             {
-                _writer.Append(_MethodBytes).Append(_NewlineBytes);
+                _writer.Append(_MethodBytes).Append(_NewlineBytes2);
                 _writer.Append(DoubleDecode(ex.TargetSite.ReflectedType?.ToString()));
-                _writer.Append(_PlusBytes).Append(_NewlineBytes);
+                _writer.Append(_PlusBytes).Append(_NewlineBytes2);
                 _writer.Append(DoubleDecode(ex.TargetSite.ToString()));
             }
-            _writer.Append(_DetailBytes).Append(_NewlineBytes);
+            _writer.Append(_DetailBytes).Append(_NewlineBytes2);
             _writer.Append(DoubleDecode(ex.ToString()));
             if (ex.Data.Count == 0)
             {
                 return;
             }
-            _writer.Append(_DataBytes).Append(_NewlineBytes);
+            _writer.Append(_DataBytes).Append(_NewlineBytes2);
             foreach (DictionaryEntry item in ex.Data)
             {
                 var value = item.Value;
@@ -352,7 +353,7 @@ namespace blqw.Logger
                 {
                     _writer.Append(DoubleDecode(value.ToString()));
                 }
-                _writer.Append(_NewlineBytes);
+                _writer.Append(_NewlineBytes2);
             }
         }
     }
