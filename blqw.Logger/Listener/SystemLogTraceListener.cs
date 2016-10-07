@@ -10,7 +10,7 @@ using blqw.Logger;
 /// <summary>
 /// 将日志写入系统事件的侦听器
 /// </summary>
-public sealed class SystemLogTraceListener : BaseTraceListener
+public sealed class SystemLogTraceListener : TraceListenerBase
 {
     /// <summary>
     /// 以线程为单位记录和输出日志 构造函数
