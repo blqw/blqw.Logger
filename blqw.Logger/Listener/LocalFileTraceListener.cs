@@ -5,7 +5,7 @@ namespace blqw.Logger
     /// <summary>
     /// 本地日志侦听器
     /// </summary>
-    internal sealed class LocalFileTraceListener : BaseTraceListener
+    internal sealed class LocalFileTraceListener : TraceListenerBase
     {
         /// <summary>
         /// 创建一个队列

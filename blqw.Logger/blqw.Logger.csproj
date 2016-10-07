@@ -54,7 +54,7 @@
     <Compile Include="SingletonTask\ActivityTokenSource.cs" />
     <Compile Include="SingletonTask\SingletonTask.cs" />
     <Compile Include="WriteQueue.cs" />
-    <Compile Include="Listener\BaseTraceListener.cs" />
+    <Compile Include="Listener\TraceListenerBase.cs" />
     <Compile Include="Writer\FileWriter.cs" />
     <Compile Include="Writer\IAppendAsync.cs" />
     <Compile Include="Writer\IFlushAsync.cs" />

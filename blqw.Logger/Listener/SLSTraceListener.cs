@@ -9,7 +9,7 @@ using blqw.Logger;
 /// 按照SLS的方式输出日志
 /// </summary>
 // ReSharper disable once InconsistentNaming
-public sealed class SLSTraceListener : BaseTraceListener
+public sealed class SLSTraceListener : TraceListenerBase
 {
     private SourceLevels _writedLevel;
 

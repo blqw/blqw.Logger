@@ -9,7 +9,7 @@ namespace blqw.Logger
     /// <summary>
     /// 监听器基础抽象类
     /// </summary>
-    public abstract class BaseTraceListener : TraceListener
+    public abstract class TraceListenerBase : TraceListener
     {
         /// <summary>
         /// 为Name属性提供值
@@ -25,7 +25,7 @@ namespace blqw.Logger
         /// 以线程为单位记录和输出日志 构造函数
         /// </summary>
         /// <param name="initializeData"> 文件路径 </param>
-        protected BaseTraceListener(bool isThreadSafe, string initializeData = null)
+        protected TraceListenerBase(bool isThreadSafe, string initializeData = null)
         {
             IsThreadSafe = isThreadSafe;
             InitializeData = initializeData;

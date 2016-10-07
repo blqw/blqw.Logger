@@ -26,8 +26,8 @@ namespace blqw.Logger
             if ((source.Listeners?.Count == 1) && source.Listeners[0] is DefaultTraceListener)
             {
                 source.Listeners.Clear();
-                source.Listeners.Add(new LocalFileTraceListener { Name = $"{nameof(blqw)}.InnerLogger-Logs" });
-                //source.Listeners.Add(new SystemLogTraceListener() { Name = "Internal" });
+                source.Listeners.Add(new LocalFile { Name = $"{nameof(blqw)}.InnerLogger-Logs" });
+                //source.Listeners.Add(new SystemLog() { Name = "Internal" });
             }
             return source;
         }
