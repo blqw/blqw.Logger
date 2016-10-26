@@ -14,8 +14,10 @@
     <description> $description$ </description>
     <releaseNotes>
       基于微软 System.Diagnostics.TraceListener 封装.
-      [1.2.10]2016.10.07 
+      [1.2.10]2016.10.07
       * 修正一个类的命名错误问题
+      [1.2.11] 2016.10.26
+      * 修正第一次并发时会生成多个空白日志的问题
     </releaseNotes>
     <copyright> Copyright 2016 </copyright>
     <tags> blqw Logger Log Debug Trace Diagnostics </tags>

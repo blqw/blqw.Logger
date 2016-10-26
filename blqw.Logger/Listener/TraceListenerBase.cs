@@ -43,10 +43,12 @@ namespace blqw.Logger
                 {
                     return _queue;
                 }
-                Interlocked.MemoryBarrier();
-                if (_queue == null)
+                lock (this)
                 {
-                    Interlocked.CompareExchange(ref _queue, CreateQueue(), null);
+                    if (_queue == null)
+                    {
+                        _queue = CreateQueue();
+                    }
                 }
                 return _queue;
             }
