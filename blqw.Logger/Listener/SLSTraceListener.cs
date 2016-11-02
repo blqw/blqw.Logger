@@ -18,7 +18,6 @@ public sealed class SLSTraceListener : FileTraceListener
     /// 初始化侦听器
     /// </summary>
     public SLSTraceListener()
-        : base(true)
     {
         InnerLogger = TraceSourceExtensions.InternalSource;
     }
@@ -27,7 +26,7 @@ public sealed class SLSTraceListener : FileTraceListener
     /// 按照SLS的方式输出日志
     /// </summary>
     public SLSTraceListener(string initializeData)
-        : base(true, initializeData)
+        : base(initializeData)
     {
         InnerLogger = TraceSourceExtensions.InternalSource;
     }

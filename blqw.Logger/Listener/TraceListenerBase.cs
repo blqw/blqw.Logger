@@ -140,7 +140,7 @@ namespace blqw.Logger
                 if (context.Exists)
                 {
                     InnerLogger?.Log(TraceEventType.Verbose, "EndLog");
-                    Queue.Add(new LogItem(context.MinLevel) { IsLast = true,Listener = this,LogGroupID = context.ContextID });
+                    Queue.Add(new LogItem(context.MinLevel) { IsLast = true, Listener = this, LogGroupID = context.ContextID });
                 }
                 else
                 {
@@ -174,23 +174,30 @@ namespace blqw.Logger
             if (context.IsNew)
             {
                 InnerLogger?.Log(TraceEventType.Verbose, "StartLog");
-                Queue.Add(new LogItem(0) { Listener = this, IsFirst = true });
-            }
-
-            if (log.Callstack == null && (TraceOutputOptions.HasFlag(TraceOptions.Callstack) || (log.Level <= TraceEventType.Error))) //是否需要获取堆栈信息
-            {
-                log.Callstack = eventCache?.Callstack ?? new StackTrace(2, true).ToString();
+                Queue.Add(new LogItem(0) { Listener = this, IsFirst = true, LogGroupID = context.ContextID });
             }
 
             if (log.Content is LogItem)
             {
-                Queue.Add((LogItem) log.Content);
+                var nlog = (LogItem)log.Content;
+                nlog.Listener = this;
+                if (nlog.LogGroupID == Guid.Empty)
+                {
+                    nlog.LogGroupID = log.LogGroupID;
+                }
+                context.MinLevel = nlog.Level;
+                Queue.Add(nlog);
             }
             else
             {
+                if (log.Callstack == null && (TraceOutputOptions.HasFlag(TraceOptions.Callstack) || (log.Level <= TraceEventType.Error))) //是否需要获取堆栈信息
+                {
+                    log.Callstack = eventCache?.Callstack ?? new StackTrace(2, true).ToString();
+                }
+
                 Queue.Add(log);
             }
-            
+
             InnerLogger?.Exit();
         }
 
