@@ -44,7 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Listener\SLSTraceListener.cs" />
-    <Compile Include="Listener\LocalFileTraceListener.cs" />
+    <Compile Include="Listener\FileTraceListener.cs" />
     <Compile Include="Listener\SystemLogTraceListener.cs" />
     <Compile Include="LogItem.cs" />
     <Compile Include="SingletonTask\AsyncEventHandler.cs" />
@@ -60,7 +60,7 @@
     <Compile Include="Writer\IFlushAsync.cs" />
     <Compile Include="Writer\IWriter.cs" />
     <Compile Include="Writer\SLSWriter.cs" />
-    <Compile Include="Writer\LocalFileTraceWriter.cs" />
+    <Compile Include="Writer\FastFileWriter.cs" />
     <Compile Include="Writer\SystemLogWriter.cs" />
   </ItemGroup>
   <ItemGroup>

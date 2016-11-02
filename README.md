@@ -22,6 +22,9 @@
           level : 跟踪日志等级(选填,默认为All,可选值参考System.Diagnostics.SourceLevels属性)
        -->
     </listeners>
+    <switches>
+      <add name="blqw.Logger" value="0"/> <!-- 禁用组件内置日志 -->
+    </switches>
   </trace>
 </system.diagnostics>
 ```

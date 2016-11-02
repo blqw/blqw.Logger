@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-namespace blqw.Logger.Writer
+namespace blqw.Logger
 {
     /// <summary>
     /// 异步追加日志接口

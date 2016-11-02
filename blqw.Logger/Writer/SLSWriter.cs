@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.Caching;
 using System.Text;
 using System.Threading;
@@ -14,36 +15,61 @@ namespace blqw.Logger
     /// <summary>
     /// 用于以SLS的格式写入日志到文件
     /// </summary>
-    internal class SLSWriter : IWriter, IFlushAsync
+    internal sealed class SLSWriter : FileWriter, IFlushAsync
     {
+        #region Public Constructors
+
+        /// <summary>
+        /// 初始化
+        /// </summary>
+        /// <param name="dir"> 文件输出路径 </param>
+        /// <param name="writedLevel"> 写入日志的等级 </param>
+        public SLSWriter(string dir, SourceLevels writedLevel)
+        {
+            _writedLevel = writedLevel;
+            _cache = new MemoryCache(Guid.NewGuid().ToString());
+            DirectoryPath = dir;
+            _queue = new ConcurrentQueue<List<LogItem>>();
+            FileMaxSize = DEFAULT_FILE_MAX_SIZE;
+            BatchMaxWait = TimeSpan.FromSeconds(5);
+        }
+
+        #endregion Public Constructors
+        
+        static class UTF8Bytes
+        {
+            public static byte[] Assembly { get; } = Encoding.UTF8.GetBytes("Assembly : ");
+            public static byte[] Comma { get; } = Encoding.UTF8.GetBytes("%2C");
+            public static byte[] Data { get; } = Encoding.UTF8.GetBytes("Data : ");
+            public static byte[] Detail { get; } = Encoding.UTF8.GetBytes("Detail : ");
+            public static byte[] Method { get; } = Encoding.UTF8.GetBytes("Method : ");
+            public static byte[] Newline { get; } = Encoding.UTF8.GetBytes("%0D%0A");
+            public static byte[] Newline2 { get; } = Encoding.UTF8.GetBytes("%250D%250A");
+            public static byte[] Null { get; } = Encoding.UTF8.GetBytes("<null>");
+            public static byte[] Plus { get; } = Encoding.UTF8.GetBytes(" + ");
+            public static byte Space { get; } = Encoding.UTF8.GetBytes(" ")[0];
+            private static readonly byte[] _Number = Encoding.UTF8.GetBytes("0123456789");
+            public static byte NumberToByte(int i) => _Number[i];
+            private static readonly HashSet<byte> _InvalidChar = new HashSet<byte>(Encoding.UTF8.GetBytes("\r\n,\"\'"));
+            public static bool IsInvalidChars(byte b) => _InvalidChar.Contains(b);
+        }
+
+        #region Private Fields
+
         //单个文件容量阈值
-        private const long DEFAULT_FILE_MAX_SIZE = 5 * 1024 * 1024; //兆
+        private const long DEFAULT_FILE_MAX_SIZE = 5*1024*1024; //兆
 
         /// <summary>
         /// 需要转义的字符
         /// </summary>
         private static readonly char[] _ReplaceChars = { '\n', '\r', '%', '"', ',', '\0' };
 
-        private static readonly byte[] _CommaBytes = Encoding.UTF8.GetBytes("%2C");
-        private static readonly byte[] _NewlineBytes = Encoding.UTF8.GetBytes("%0D%0A");
-        private static readonly byte[] _NewlineBytes2 = Encoding.UTF8.GetBytes("%250D%250A");
-        private static readonly HashSet<byte> _SpaceKeysBytes = new HashSet<byte>(Encoding.UTF8.GetBytes("\r\n,\"\'"));
-        private static readonly byte _SpaceBytes = Encoding.UTF8.GetBytes(" ")[0];
-
-        private static readonly byte[] _AssemblyBytes = Encoding.UTF8.GetBytes("Assembly : ");
-        private static readonly byte[] _MethodBytes = Encoding.UTF8.GetBytes("Method : ");
-        private static readonly byte[] _PlusBytes = Encoding.UTF8.GetBytes(" + ");
-        private static readonly byte[] _DetailBytes = Encoding.UTF8.GetBytes("Detail : ");
-        private static readonly byte[] _DataBytes = Encoding.UTF8.GetBytes("Data : ");
-        private static readonly byte[] _NullBytes = Encoding.UTF8.GetBytes("<null>");
-
-        private static readonly byte[] numberBytes = Encoding.UTF8.GetBytes("0123456789");
         private readonly SourceLevels _writedLevel;
 
         /// <summary>
         /// 队列
         /// </summary>
-        private readonly ConcurrentQueue<List<LogItem>> Queue;
+        private readonly ConcurrentQueue<List<LogItem>> _queue;
 
         /// <summary>
         /// 缓存
@@ -55,73 +81,27 @@ namespace blqw.Logger
         /// </summary>
         private Task _flushTask;
 
-        private FileWriter _writer;
+        #endregion Private Fields
 
-        /// <summary>
-        /// 初始化
-        /// </summary>
-        /// <param name="dir"> 文件输出路径 </param>
-        /// <param name="logger"> </param>
-        /// <param name="writedLevel"> 写入日志的等级 </param>
-        public SLSWriter(string dir, TraceSource logger, SourceLevels writedLevel)
-        {
-            _writedLevel = writedLevel;
-            Logger = logger;
-            _cache = new MemoryCache(Guid.NewGuid().ToString());
-            Name = dir;
-            Queue = new ConcurrentQueue<List<LogItem>>();
-            _writer = new FileWriter(dir, DEFAULT_FILE_MAX_SIZE);
-        }
-
-        /// <summary>
-        /// 异步刷新
-        /// </summary>
-        /// <param name="token"> </param>
-        /// <returns> </returns>
-        public async Task FlushAsync(CancellationToken token)
-        {
-            if (_flushTask != null)
-            {
-                await _flushTask;
-            }
-            _flushTask = Task.Factory.StartNew(() =>
-            {
-                try
-                {
-                    Flush();
-                }
-                catch (Exception ex)
-                {
-                    Logger?.Error(ex);
-                }
-            }, token);
-        }
-
-        public TraceSource Logger { get; set; }
-
-        /// <summary>
-        /// 批处理最大数量
-        /// </summary>
-        public int BatchMaxCount { get; set; } = 0;
-
-        /// <summary>
-        /// 批处理最大等待时间
-        /// </summary>
-        public TimeSpan BatchMaxWait { get; set; } = TimeSpan.FromSeconds(5);
+        #region Public Properties
 
         /// <summary>
         /// 写入器名称
         /// </summary>
-        public string Name { get; }
+        public override string Name => nameof(SLSWriter);
+
+        #endregion Public Properties
+
+        #region Public Methods
 
         /// <summary>
         /// 追加日志
         /// </summary>
         /// <param name="item"> </param>
-        public void Append(LogItem item)
+        public override void Append(LogItem item)
         {
             Logger?.Entry();
-            var key = item.LogID.ToString("n"); //根据日志id从缓存中获取其他日志信息
+            var key = item.LogGroupID.ToString("n"); //根据日志id从缓存中获取其他日志信息
             var list = _cache[key] as List<LogItem>;
 
             if (list == null)
@@ -165,14 +145,15 @@ namespace blqw.Logger
             Logger?.Exit();
         }
 
-        /// <summary> 执行与释放或重置非托管资源关联的应用程序定义的任务。 </summary>
+        /// <summary>
+        /// 执行与释放或重置非托管资源关联的应用程序定义的任务。
+        /// </summary>
         /// <filterpriority> 2 </filterpriority>
-        public void Dispose()
+        public override void Dispose()
         {
             var cache = Interlocked.Exchange(ref _cache, null);
             cache?.Dispose();
-            var writer = Interlocked.Exchange(ref _writer, null);
-            writer?.Dispose();
+            base.Dispose();
         }
 
         /// <summary>
@@ -181,11 +162,11 @@ namespace blqw.Logger
         /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
         /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
         /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public void Flush()
+        public override void Flush()
         {
             Logger?.Entry();
             List<LogItem> logs;
-            while (Queue.TryDequeue(out logs))
+            while (_queue.TryDequeue(out logs))
             {
                 if ((logs == null) || (logs.Count == 0))
                 {
@@ -193,40 +174,47 @@ namespace blqw.Logger
                     return;
                 }
                 var log = logs[0];
-                if (((int)_writedLevel & (int)log.Level) == 0)
+                if (((int) _writedLevel & (int) log.Level) == 0)
                 {
                     continue;
                 }
 
-                _writer.ChangeFileIfFull();
-                _writer.AppendLine();
-                _writer.Append(log.Time.ToString("yyyy-MM-dd HH:mm:ss")).AppendComma();
-                _writer.Append(log.LogID.ToString("n")).AppendComma();
+                ChangeFileIfFull();
+                AppendLine();
+                base.Append(log.Time.ToString("yyyy-MM-dd HH:mm:ss"));
+                base.AppendComma();
+                base.Append(log.LogGroupID.ToString("n"));
+                base.AppendComma();
                 WriteLevel(log.Level);
-                _writer.AppendComma();
-                _writer.Append(log.LoggerName).AppendComma();
+                AppendComma();
+                base.Append(log.Listener.Name);
+                base.AppendComma();
                 for (int i = 1, length = logs.Count; i < length; i++)
                 {
                     log = logs[i];
-                    var message = log.MessageOrContent as string;
-                    _writer.Append(log.Time.ToString("HH:mm:ss.fff")).Append(_CommaBytes);
+                    var message = log.Message ?? log.Content as string;
+                    base.Append(log.Time.ToString("HH:mm:ss.fff"));
+                    base.AppendComma();
                     WriteLevel(log.Level);
-                    _writer.Append(_CommaBytes);
-                    _writer.Append(DoubleDecode(log.Title)).Append(_CommaBytes);
-                    _writer.Append(DoubleDecode(message ?? "无")).Append(_CommaBytes);
-                    _writer.Append(DoubleDecode(log.Callstack)).Append(_CommaBytes);
+                    base.AppendComma();
+                    base.Append(DoubleDecode(log.Category ?? log.Source)); //没有分类时,显示来源
+                    base.AppendComma(); 
+                    base.Append(DoubleDecode(message ?? "无"));
+                    base.AppendComma();
+                    WriteCallstack(log);
+                    base.AppendComma();
                     if (message == null)
                     {
-                        WriteContent(log.MessageOrContent);
+                        WriteContent(log.Content);
                     }
-                    _writer.Append(_NewlineBytes);
+                    base.AppendLine();
                 }
-                _writer.AppendComma();
+                AppendComma();
                 //追加索引
                 for (int i = 1, length = logs.Count; i < length; i++)
                 {
                     log = logs[i];
-                    var message = log.MessageOrContent as string;
+                    var message = log.Message;
                     if (string.IsNullOrWhiteSpace(message))
                     {
                         continue;
@@ -234,59 +222,67 @@ namespace blqw.Logger
                     var bytes = Encoding.UTF8.GetBytes(message);
                     for (int j = 0, l = bytes.Length; j < l; j++)
                     {
-                        if (_SpaceKeysBytes.Contains(bytes[j]))
+                        if (UTF8Bytes.IsInvalidChars(bytes[j]))
                         {
-                            bytes[j] = _SpaceBytes;
+                            bytes[j] = UTF8Bytes.Space;
                         }
                     }
-                    _writer.Append(bytes);
-                    _writer.AppendWhiteSpace();
+                    Append(bytes);
+                    AppendWhiteSpace();
                 }
             }
-            _writer.Flush();
+            base.Flush();
             Logger?.Exit();
         }
 
-        private void WriteLevel(TraceEventType logLevel)
+        private void WriteCallstack(LogItem log)
         {
-            switch (logLevel)
+            if (log.File != null)
             {
-                case TraceEventType.Critical:
-                case TraceEventType.Error:
-                    _writer.AppendByte(numberBytes[1]);
-                    break;
-                case TraceEventType.Warning:
-                    _writer.AppendByte(numberBytes[2]);
-                    break;
-                case TraceEventType.Information:
-                    _writer.AppendByte(numberBytes[3]);
-                    break;
-                case TraceEventType.Verbose:
-                case TraceEventType.Start:
-                case TraceEventType.Stop:
-                case TraceEventType.Suspend:
-                case TraceEventType.Resume:
-                case TraceEventType.Transfer:
-                default:
-                    _writer.AppendByte(numberBytes[4]);
-                    break;
+                base.Append(DoubleDecode(log.File));
+                base.Append("%252C"); //逗号
+                base.Append(DoubleDecode(log.Message));
+                base.Append(":");
+                base.Append(log.LineNumber.ToString());
+            }
+            if (log.Callstack != null)
+            {
+                if (log.File!=null)
+                {
+                    base.Append(UTF8Bytes.Newline2);
+                }
+                base.Append(DoubleDecode(log.Callstack));
             }
         }
+        
 
         /// <summary>
-        /// 缓存被移除事件
+        /// 异步刷新
         /// </summary>
-        /// <param name="arguments"> </param>
-        private void RemovedCallback(CacheEntryRemovedArguments arguments)
+        /// <param name="token"> </param>
+        /// <returns> </returns>
+        public async Task FlushAsync(CancellationToken token)
         {
-            Logger?.Entry();
-            var list = arguments?.CacheItem?.Value as List<LogItem>;
-            if (list != null)
+            if (_flushTask != null)
             {
-                Queue.Enqueue(list);
+                await _flushTask;
             }
-            Logger?.Exit();
+            _flushTask = Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    Flush();
+                }
+                catch (Exception ex)
+                {
+                    Logger?.Error(ex);
+                }
+            }, token);
         }
+
+        #endregion Public Methods
+
+        #region Private Methods
 
         /// <summary>
         /// 二次转义
@@ -313,6 +309,21 @@ namespace blqw.Logger
         }
 
         /// <summary>
+        /// 缓存被移除事件
+        /// </summary>
+        /// <param name="arguments"> </param>
+        private void RemovedCallback(CacheEntryRemovedArguments arguments)
+        {
+            Logger?.Entry();
+            var list = arguments?.CacheItem?.Value as List<LogItem>;
+            if (list != null)
+            {
+                _queue.Enqueue(list);
+            }
+            Logger?.Exit();
+        }
+
+        /// <summary>
         /// 写入日志正文
         /// </summary>
         /// <param name="content"> </param>
@@ -321,40 +332,79 @@ namespace blqw.Logger
             var ex = content as Exception;
             if (ex == null)
             {
-                _writer.Append(DoubleDecode(content?.ToString()));
+                base.Append(DoubleDecode(content?.ToString()));
                 return;
             }
 
-            _writer.Append(_AssemblyBytes).Append(_NewlineBytes2);
-            _writer.Append(DoubleDecode(ex.GetType().AssemblyQualifiedName));
+            base.Append(UTF8Bytes.Assembly);
+            base.Append(UTF8Bytes.Newline2);
+            base.Append(DoubleDecode(ex.GetType().AssemblyQualifiedName));
             if (ex.TargetSite != null)
             {
-                _writer.Append(_MethodBytes).Append(_NewlineBytes2);
-                _writer.Append(DoubleDecode(ex.TargetSite.ReflectedType?.ToString()));
-                _writer.Append(_PlusBytes).Append(_NewlineBytes2);
-                _writer.Append(DoubleDecode(ex.TargetSite.ToString()));
+                base.Append(UTF8Bytes.Method);
+                base.Append(UTF8Bytes.Newline2);
+                base.Append(DoubleDecode(ex.TargetSite.ReflectedType?.ToString()));
+                base.Append(UTF8Bytes.Plus);
+                base.Append(UTF8Bytes.Newline2);
+                base.Append(DoubleDecode(ex.TargetSite.ToString()));
             }
-            _writer.Append(_DetailBytes).Append(_NewlineBytes2);
-            _writer.Append(DoubleDecode(ex.ToString()));
+            base.Append(UTF8Bytes.Detail);
+            base.Append(UTF8Bytes.Newline2);
+            base.Append(DoubleDecode(ex.ToString()));
             if (ex.Data.Count == 0)
             {
                 return;
             }
-            _writer.Append(_DataBytes).Append(_NewlineBytes2);
+            base.Append(UTF8Bytes.Data);
+            base.Append(UTF8Bytes.Newline2);
             foreach (DictionaryEntry item in ex.Data)
             {
                 var value = item.Value;
-                _writer.Append(DoubleDecode(item.Key?.ToString())).AppendWhiteSpace().AppendColon().AppendWhiteSpace();
+                base.Append(DoubleDecode(item.Key?.ToString()));
+                base.AppendWhiteSpace();
+                base.AppendColon();
+                base.AppendWhiteSpace();
                 if (value == null)
                 {
-                    _writer.Append(_NullBytes);
+                    base.Append(UTF8Bytes.Null);
                 }
                 else
                 {
-                    _writer.Append(DoubleDecode(value.ToString()));
+                    base.Append(DoubleDecode(value.ToString()));
                 }
-                _writer.Append(_NewlineBytes2);
+                base.Append(UTF8Bytes.Newline2);
             }
         }
+
+        private void WriteLevel(TraceEventType logLevel)
+        {
+            switch (logLevel)
+            {
+                case TraceEventType.Critical:
+                case TraceEventType.Error:
+                    AppendByte(UTF8Bytes.NumberToByte(1));
+                    break;
+
+                case TraceEventType.Warning:
+                    AppendByte(UTF8Bytes.NumberToByte(2));
+                    break;
+
+                case TraceEventType.Information:
+                    AppendByte(UTF8Bytes.NumberToByte(3));
+                    break;
+
+                case TraceEventType.Verbose:
+                case TraceEventType.Start:
+                case TraceEventType.Stop:
+                case TraceEventType.Suspend:
+                case TraceEventType.Resume:
+                case TraceEventType.Transfer:
+                default:
+                    AppendByte(UTF8Bytes.NumberToByte(4));
+                    break;
+            }
+        }
+
+        #endregion Private Methods
     }
 }

@@ -26,8 +26,7 @@ namespace blqw.Logger
             if ((source.Listeners?.Count == 1) && source.Listeners[0] is DefaultTraceListener)
             {
                 source.Listeners.Clear();
-                source.Listeners.Add(new LocalFileTraceListener() { Name = $"{nameof(blqw)}.InnerLogger-Logs" });
-                //source.Listeners.Add(new SystemLog() { Name = "Internal" });
+                source.Listeners.Add(new FileTraceListener() { Name = $"{nameof(blqw)}.InnerLogger-Logs" });
             }
             return source;
         }
@@ -61,14 +60,15 @@ namespace blqw.Logger
             }
             try
             {
-                source.TraceData(type, 1, new LogItem
+                source.TraceData(type, 1, new LogItem(type)
                 {
-                    Title = title,
-                    MessageOrContent = message,
-                    LoggerName = source.Name,
+                    Category = title,
+                    Message = message,
+                    Source = source.Name,
                     Time = DateTime.Now,
-                    Callstack = $"{member}{Environment.NewLine}{file}:{line}",
-                    LogID = Trace.CorrelationManager.ActivityId
+                    File = file,
+                    Method = member,
+                    LineNumber = line,
                 });
             }
             catch

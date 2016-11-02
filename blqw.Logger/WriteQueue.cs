@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using blqw.Logger.Writer;
 
 namespace blqw.Logger
 {
@@ -141,7 +140,7 @@ namespace blqw.Logger
                         Logger?.Exit();
                         return;
                     }
-                    log = LogItem.Null;
+                    log = default(LogItem);
                 }
 
                 var runtime = (DateTime.Now - _lastFlushTime).TotalMilliseconds;

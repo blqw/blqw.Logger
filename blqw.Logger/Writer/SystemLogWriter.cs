@@ -1,93 +1,103 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace blqw.Logger
 {
+    /// <summary>
+    /// 用于将日志内容写入系统事件
+    /// </summary>
     public sealed class SystemLogWriter : IWriter
     {
+        private readonly string _applicationName;
         private EventLog _logger;
+        /// <summary>
+        /// 初始化实例
+        /// </summary>
+        /// <param name="applicationName"> 系统事件记录的应用程序名 </param>
+        public SystemLogWriter(string applicationName)
+        {
+            _applicationName = applicationName;
+        }
 
-        public SystemLogWriter(string logName, string source)
+        /// <summary>
+        /// 初始化写入器
+        /// </summary>
+        /// <param name="listener"> </param>
+        public void Initialize(TraceListener listener)
         {
-            if (!EventLog.SourceExists(source))
+            var eventSource = listener.Name ?? "None";
+            if (!EventLog.SourceExists(eventSource))
             {
-                EventLog.CreateEventSource(source, logName);
+                EventLog.CreateEventSource(eventSource, _applicationName);
             }
-            _logger = new EventLog(logName, ".", source);
+            Name = $"{_applicationName}.{eventSource}";
+            _logger = new EventLog(_applicationName, ".", eventSource);
         }
-        /// <summary>执行与释放或重置非托管资源关联的应用程序定义的任务。</summary>
-        public void Dispose()
-        {
-            var logger = Interlocked.Exchange(ref _logger, null);
-            logger?.Dispose();
-            var buffer = Interlocked.Exchange(ref _buffer, null);
-            buffer?.Clear();
-        }
+        /// <summary>
+        /// 执行与释放或重置非托管资源关联的应用程序定义的任务。
+        /// </summary>
+        public void Dispose() => Interlocked.Exchange(ref _logger, null)?.Dispose();
 
         /// <summary>
         /// 批处理最大数量
         /// </summary>
-        public int BatchMaxCount { get; }
+        int IWriter.BatchMaxCount => 0;
 
         /// <summary>
         /// 批处理最大等待时间
         /// </summary>
-        public TimeSpan BatchMaxWait { get; }
+        TimeSpan IWriter.BatchMaxWait => TimeSpan.Zero;
 
         /// <summary>
         /// 写入器名称
         /// </summary>
-        public string Name { get; }
+        public string Name { get; private set; }
+
 
         /// <summary>
         /// 日志跟踪器
         /// </summary>
         public TraceSource Logger { get; set; }
 
-        /// <summary>
-        /// 冒号(:)
-        /// </summary>
-        private static readonly byte _ColonBytes = Encoding.UTF8.GetBytes(":")[0];
-
-        /// <summary>
-        /// 新行(<seealso cref="Environment.NewLine" />)
-        /// </summary>
-        private static readonly byte[] _Newline = Encoding.UTF8.GetBytes(Environment.NewLine);
 
         /// <summary>
         /// 追加日志
         /// </summary>
         /// <param name="item"> </param>
-        /// <exception cref="ObjectDisposedException">对象已释放</exception>
+        /// <exception cref="ObjectDisposedException"> 对象已释放 </exception>
         public void Append(LogItem item)
         {
             if (_logger == null)
             {
+                if (Name == null)
+                {
+                    throw new NotSupportedException("对象尚未初始化");
+                }
                 throw new ObjectDisposedException("对象已释放");
             }
             if (item.IsFirst != item.IsLast)
             {
                 return;
             }
-            _buffer.Clear();
-            Wirte("LogID", item.LogID.ToString("n"));
-            Wirte("Time", item.Time.ToString("yyyy-MM-dd HH:mm:ss.ffffff"));
-            Wirte("Level", item.Level.ToString());
-            Wirte("LoggerName", item.LoggerName);
-            Wirte("Title", item.Title);
-            Wirte("Content", item.MessageOrContent?.ToString());
-            Wirte("Callstack", item.Callstack);
-            var txt = _buffer.ToString();
-            _buffer.Clear();
-            _logger.WriteEntry(txt, GetEntryType(item.Level), 0, 0);
+            _logger.WriteEntry(item.ToString(), GetEntryType(item.Level), item.TraceEventID, (short) item.Level);
         }
+
+
+        /// <summary>
+        /// 刷新缓存
+        /// </summary>
+        public void Flush()
+        {
+        }
+
+        /// <summary>
+        /// 获取跟踪侦听器支持的自定义特性。
+        /// </summary>
+        /// <returns> 为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。 </returns>
+        public string[] GetSupportedAttributes() => null;
+
+        //无需刷新
 
         private EventLogEntryType GetEntryType(TraceEventType type)
         {
@@ -102,26 +112,5 @@ namespace blqw.Logger
                     return EventLogEntryType.Information;
             }
         }
-
-        private StringBuilder _buffer = new StringBuilder();
-
-        private void Wirte(string name, string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return;
-            }
-            _buffer.Append(name);
-            _buffer.Append(' ', 11 - name.Length);
-            _buffer.Append(':');
-            _buffer.Append(' ');
-            _buffer.Append(value);
-            _buffer.AppendLine();
-        }
-
-        /// <summary>
-        /// 刷新缓存
-        /// </summary>
-        public void Flush() { }
     }
 }

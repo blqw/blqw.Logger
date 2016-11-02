@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using blqw.Logger;
 // ReSharper disable ExceptionNotDocumented
@@ -9,7 +10,7 @@ using blqw.Logger;
 /// 按照SLS的方式输出日志
 /// </summary>
 // ReSharper disable once InconsistentNaming
-public sealed class SLSTraceListener : TraceListenerBase
+public sealed class SLSTraceListener : FileTraceListener
 {
     private SourceLevels _writedLevel;
 
@@ -29,6 +30,7 @@ public sealed class SLSTraceListener : TraceListenerBase
         : base(true, initializeData)
     {
         InnerLogger = TraceSourceExtensions.InternalSource;
+        QueueMaxCount = 5000 * 10000; //默认队列 5000 万
     }
 
     /// <summary>
@@ -74,16 +76,8 @@ public sealed class SLSTraceListener : TraceListenerBase
 
         int queueMaxLength;
         int.TryParse(Attributes["queueMaxLength"], out queueMaxLength);
-        var writer = new SLSWriter(dir, InnerLogger, WritedLevel);
-        if (queueMaxLength <= 0)
-        {
-            queueMaxLength = 5000 * 10000; //默认队列 5000 万
-        }
-        else if (queueMaxLength < 100 * 10000)
-        {
-            queueMaxLength = 100 * 10000; //最小队列 100 万
-        }
-        return new WriteQueue(writer, queueMaxLength) { Logger = InnerLogger };
+        Writer = new SLSWriter(dir, WritedLevel);
+        return base.CreateQueue();
     }
 
 
@@ -91,5 +85,5 @@ public sealed class SLSTraceListener : TraceListenerBase
     /// 获取跟踪侦听器支持的自定义特性。
     /// </summary>
     /// <returns> 为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。 </returns>
-    protected override string[] GetSupportedAttributes() => new[] { "level", "queueMaxLength" };
+    protected override string[] GetSupportedAttributes() => UnionArray(new[] { "level" }, base.GetSupportedAttributes());
 }

@@ -10,12 +10,10 @@ namespace blqw.Logger
     /// <summary>
     /// 文件写入器
     /// </summary>
-    public sealed class FileWriter : IDisposable
+    public class FileWriter : IWriter
     {
-        /// <summary>
-        /// 下一次删除文件的时间
-        /// </summary>
-        private static long _NextDeleteFileTicks;
+
+        #region Private Fields
 
         /// <summary>
         /// 冒号(:)
@@ -23,14 +21,19 @@ namespace blqw.Logger
         private static readonly byte _Colon = Encoding.UTF8.GetBytes(":")[0];
 
         /// <summary>
-        /// 分号(;)
-        /// </summary>
-        private static readonly byte _Semicolon = Encoding.UTF8.GetBytes(";")[0];
-
-        /// <summary>
         /// 逗号(,)
         /// </summary>
         private static readonly byte _Comma = Encoding.UTF8.GetBytes(",")[0];
+
+        /// <summary>
+        /// 新行( <seealso cref="Environment.NewLine" />)
+        /// </summary>
+        private static readonly byte[] _Newline = Encoding.UTF8.GetBytes(Environment.NewLine);
+
+        /// <summary>
+        /// 分号(;)
+        /// </summary>
+        private static readonly byte _Semicolon = Encoding.UTF8.GetBytes(";")[0];
 
         /// <summary>
         /// 空格( )
@@ -38,51 +41,53 @@ namespace blqw.Logger
         private static readonly byte _Space = Encoding.UTF8.GetBytes(" ")[0];
 
         /// <summary>
-        /// 新行(<seealso cref="Environment.NewLine" />)
-        /// </summary>
-        private static readonly byte[] _Newline = Encoding.UTF8.GetBytes(Environment.NewLine);
-
-        /// <summary>
         /// UTF8格式的txt文件头
         /// </summary>
-        private static readonly byte[] _Utf8Head = { 239, 187, 191 };
+        private static readonly byte[] _Utf8Head = Encoding.UTF8.GetPreamble();
+
+        /// <summary>
+        /// 下一次删除文件的时间
+        /// </summary>
+        private static long _NextDeleteFileTicks;
+
+        /// <summary>
+        /// 文件流
+        /// </summary>
+        private FileStream _innerStream;
+
+        #endregion Private Fields
+
+        #region Public Properties
+
+        /// <summary>
+        /// 批处理最大数量
+        /// </summary>
+        public virtual int BatchMaxCount { get; protected set; }
+
+        /// <summary>
+        /// 批处理最大等待时间
+        /// </summary>
+        public virtual TimeSpan BatchMaxWait { get; protected set; }
+
+        /// <summary>
+        /// 文件保留天数
+        /// </summary>
+        public virtual int FileRetentionDays { get; protected set; }
+
+        /// <summary>
+        /// 当前正在写入的文件
+        /// </summary>
+        public string FilePath { get; private set; }
 
         /// <summary>
         /// 日志文件限制大小
         /// </summary>
-        private readonly long _filelimit;
+        public virtual long FileMaxSize { get; protected set; }
 
         /// <summary>
         /// 日志文件所在文件夹路径
         /// </summary>
-        private readonly string _path;
-
-        /// <summary>
-        /// 文件写入器
-        /// </summary>
-        private FileStream _writer;
-
-        /// <summary>
-        /// 初始化文件写入器
-        /// </summary>
-        /// <param name="path"> 文件默认路径 </param>
-        /// <param name="filelimit"> 单个文件大小 </param>
-        /// <exception cref="ArgumentNullException"> <paramref name="path" /> is <see langword="null" />. </exception>
-        /// <exception cref="ArgumentOutOfRangeException"> <paramref name="filelimit" />小于1 </exception>
-        public FileWriter(string path, long filelimit)
-        {
-            if (path == null)
-            {
-                throw new ArgumentNullException(nameof(path));
-            }
-            if (filelimit <= 1)
-            {
-                throw new ArgumentOutOfRangeException(nameof(filelimit));
-            }
-            _path = Path.Combine(path, "{0:yyyyMMddHH}");
-            _filelimit = filelimit;
-            SetNewWirteFile();
-        }
+        public virtual string DirectoryPath { get; protected set; }
 
         /// <summary>
         /// 日志写入
@@ -90,69 +95,111 @@ namespace blqw.Logger
         public TraceSource Logger { get; set; }
 
         /// <summary>
-        /// 当前正在写入的文件
+        /// 写入器名称
         /// </summary>
-        public string CurrentFilePath { get; private set; }
+        public virtual string Name { get; protected set; }
 
         /// <summary>
-        /// 执行与释放或重置非托管资源关联的应用程序定义的任务。
+        /// 文件流
         /// </summary>
-        public void Dispose()
+        public FileStream InnerStream
         {
-            var writer = Interlocked.Exchange(ref _writer, null);
-            try
+            get
             {
-                writer?.Flush();
-            }
-            catch
-            {
-                // ignored
-            }
-            writer?.Dispose();
-        }
-
-        /// <summary>
-        /// 设置当前写入文件
-        /// </summary>
-        private void SetNewWirteFile()
-        {
-            if (CheckAndSetDeletedFileTime()) //检查时间,判断是否启动删除文件程序
-            {
-                Task.Run(() => Delete(2));
-            }
-            //获取写入文件夹
-            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, string.Format(_path, DateTime.Now));
-            if (Directory.Exists(path) == false)
-            {
-                Directory.CreateDirectory(path);
-            }
-            //获取最大文件编号
-            var max = GetMaxFileNumber(path);
-            while (true)
-            {
-                var file = GetFile(path, max);
-                try
+                if (_innerStream == null)
                 {
-                    var writer = new FileStream(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read,
-                        (int) _filelimit); //尝试打开文件
-                    var source = Interlocked.Exchange(ref _writer, writer);
-                    source?.Flush();
-                    source?.Dispose(); //释放前一个文件流写入通道
-                    if (writer.Position == 0)
+                    if (DirectoryPath == null)
                     {
-                        writer.Write(_Utf8Head, 0, _Utf8Head.Length); //如果文件是新的,写入文件头
+                        throw new NotSupportedException("尚未初始化");
                     }
-                    CurrentFilePath = file.FullName;
-                    break;
+                    throw new ObjectDisposedException("对象已释放");
                 }
-                catch (Exception ex)
-                {
-                    max++; //如果文件打开失败,忽略这个文件
-                    Logger?.Error(ex, $"文件({file.FullName})打开失败");
-                }
+                return _innerStream;
             }
         }
 
+        #endregion Public Properties
+
+        #region Public Methods
+
+        #region Append
+        /// <summary>
+        /// 追加字符串到文件流
+        /// </summary>
+        /// <param name="text"> 被追加到文件的字符串 </param>
+        /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
+        public void Append(string text) => Append(text == null ? null : Encoding.UTF8.GetBytes(text));
+
+
+        /// <summary>
+        /// 追加字节到文件流
+        /// </summary>
+        /// <param name="buffer"> 被追加到文件的字节数组 </param>
+        /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
+        public void Append(byte[] buffer)
+        {
+            var length = buffer?.Length ?? 0;
+            if (length > 0)
+            {
+                InnerStream.Write(buffer, 0, buffer.Length);
+            }
+        }
+
+        /// <summary>
+        /// 追加日志
+        /// </summary>
+        /// <param name="item"> </param>
+        public virtual void Append(LogItem item) => Append(item.ToString());
+
+        /// <summary>
+        /// 追加字节
+        /// </summary>
+        /// <param name="value"> </param>
+        /// <returns> </returns>
+        public void AppendByte(byte value) => InnerStream.WriteByte(value);
+
+        /// <summary>
+        /// 追加冒号
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
+        public void AppendColon() => InnerStream.WriteByte(_Colon);
+
+        /// <summary>
+        /// 追加逗号
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
+        public void AppendComma() => InnerStream.WriteByte(_Comma);
+
+        /// <summary>
+        /// 追加新行
+        /// </summary>
+        /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
+        public void AppendLine() => InnerStream.Write(_Newline, 0, _Newline.Length);
+
+        /// <summary>
+        /// 追加分号
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
+        public void AppendSemicolon() => InnerStream.WriteByte(_Semicolon);
+
+        /// <summary>
+        /// 追加空格
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
+        public void AppendWhiteSpace() => InnerStream.WriteByte(_Space);
+
+        #endregion
+        
         /// <summary>
         /// 如果文件已满则改变当前文件
         /// </summary>
@@ -160,11 +207,7 @@ namespace blqw.Logger
         public void ChangeFileIfFull()
         {
             Logger?.Entry();
-            if (_writer == null)
-            {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            if (_writer.Length < _filelimit)
+            if (InnerStream.Length < FileMaxSize)
             {
                 Logger?.Exit();
                 return;
@@ -174,46 +217,95 @@ namespace blqw.Logger
         }
 
         /// <summary>
-        /// 检查并设置删除文件的时间,如果设置成功返回true
+        /// 执行与释放或重置非托管资源关联的应用程序定义的任务。
         /// </summary>
-        /// <returns> </returns>
-        private bool CheckAndSetDeletedFileTime()
+        public virtual void Dispose()
         {
-            var prev = _NextDeleteFileTicks;
-            var last = DateTime.Today.AddDays(1).Ticks; //时间加1天
-            if (prev >= last)
+            using (var writer = Interlocked.Exchange(ref _innerStream, null))
             {
-                return false;
+                writer?.Flush();
             }
-            if (Interlocked.CompareExchange(ref _NextDeleteFileTicks, last, prev) == prev) //原子操作
-            {
-                return prev < last;
-            }
-            return false;
         }
 
         /// <summary>
-        /// 获取一个可以写入数据的文件
+        /// 刷新缓存到
         /// </summary>
-        /// <param name="path"> 文件路径 </param>
-        /// <param name="fileNumber"> 文件编号 </param>
-        /// <returns> </returns>
-        private FileInfo GetFile(string path, int fileNumber)
+        /// <exception cref="IOException"> 发生了 I/O 错误。 </exception>
+        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
+        public virtual void Flush() => _innerStream?.Flush();
+
+        /// <summary>
+        /// 获取跟踪侦听器支持的自定义特性。
+        /// </summary>
+        /// <returns> 为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。 </returns>
+        public virtual string[] GetSupportedAttributes() => new []{ "initializeData", "fileMaxSize", "fileRetentionDays" };
+
+        /// <summary>
+        /// 初始化写入器
+        /// </summary>
+        /// <param name="listener"> </param>
+        /// <exception cref="ArgumentOutOfRangeException"> fileLimit 属性错误:文件限制大小不能小于1048576(1MB)或大于1073741824(1GB) </exception>
+        /// <exception cref="ArgumentNullException"> initializeData 属性不能为空 </exception>
+        /// <exception cref="ArgumentNullException"> 参数 <see cref="listener" /> 不能为空 </exception>
+        public virtual void Initialize(TraceListener listener)
         {
-            while (true)
+            if (listener == null)
             {
-                var file = new FileInfo(Path.Combine(path, fileNumber + ".log"));
-                if (file.Exists == false)
-                {
-                    return file;
-                }
-                if (file.Length < _filelimit) //文件大小没有超过限制
-                {
-                    return file;
-                }
-                fileNumber = fileNumber + 1;
+                throw new ArgumentNullException(nameof(listener));
             }
+            var initializeData = listener.Attributes["initializeData"];
+            var fileMaxSize = listener.Attributes["fileMaxSize"];
+            var fileRetentionDays = listener.Attributes["fileRetentionDays"];
+            if (initializeData == null)
+            {
+                if (DirectoryPath == null)
+                {
+                    throw new ArgumentNullException(nameof(initializeData), "[initializeData]不能为空");
+                }
+            }
+            DirectoryPath = initializeData;
+            if (fileMaxSize == null)
+            {
+                if (FileMaxSize == 0)
+                {
+                    FileMaxSize = 5 * 1024 * 1024; //兆
+                }
+            }
+            else
+            {
+                long limit;
+                long.TryParse(fileMaxSize, out limit);
+                if ((limit < 1 * 1024 * 1024) || (limit > 1024 * 1024 * 1024))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(fileMaxSize), "[fileMaxSize]文件限制大小不能小于1048576(1MB)或大于1073741824(1GB)");
+                }
+                FileMaxSize = limit;
+            }
+            if (fileRetentionDays == null)
+            {
+                if (FileRetentionDays == 0)
+                {
+                    FileRetentionDays = 2;
+                }
+            }
+            else
+            {
+                int days;
+                int.TryParse(fileRetentionDays, out days);
+                if (days < 1)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(fileRetentionDays), "[fileRetentionDays]文件保留天数不能少于1天");
+                }
+                FileRetentionDays = days;
+            }
+
+            SetNewWirteFile();
         }
+
+        #endregion Public Methods
+
+        #region Private Methods
+
 
         /// <summary>
         /// 获取文件的最大编号
@@ -241,14 +333,32 @@ namespace blqw.Logger
         }
 
         /// <summary>
+        /// 检查并设置删除文件的时间,如果设置成功返回true
+        /// </summary>
+        /// <returns> </returns>
+        private bool CheckAndSetDeletedFileTime()
+        {
+            var prev = _NextDeleteFileTicks;
+            var last = DateTime.Today.AddDays(1).Ticks; //时间加1天
+            if (prev >= last)
+            {
+                return false;
+            }
+            if (Interlocked.CompareExchange(ref _NextDeleteFileTicks, last, prev) == prev) //原子操作
+            {
+                return prev < last;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 删除文件
         /// </summary>
         /// <param name="days"> 删除几天之前的文件 </param>
         private void Delete(int days)
         {
             Logger?.Entry();
-            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, string.Format(_path, DateTime.MinValue));
-            var root = Directory.GetParent(path); //获取父级文件夹
+            var root = new DirectoryInfo(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DirectoryPath));
             if (root.Exists == false) //如果不存在,放弃操作
             {
                 Logger?.Exit();
@@ -272,158 +382,70 @@ namespace blqw.Logger
             Logger?.Exit();
         }
 
-
         /// <summary>
-        /// 追加字符串到文件流
+        /// 获取一个可以写入数据的文件
         /// </summary>
-        /// <param name="text"> 被追加到文件的字符串 </param>
-        /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter Append(string text)
+        /// <param name="path"> 文件路径 </param>
+        /// <param name="fileNumber"> 文件编号 </param>
+        /// <returns> </returns>
+        private FileInfo GetFile(string path, int fileNumber)
         {
-            if (_writer == null)
+            while (true)
             {
-                throw new ObjectDisposedException("流已关闭");
+                var file = new FileInfo(Path.Combine(path, fileNumber + ".log"));
+                if (file.Exists == false)
+                {
+                    return file;
+                }
+                if (file.Length < FileMaxSize) //文件大小没有超过限制
+                {
+                    return file;
+                }
+                fileNumber = fileNumber + 1;
             }
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return this;
-            }
-            var buffer = Encoding.UTF8.GetBytes(text);
-            _writer.Write(buffer, 0, buffer.Length);
-            return this;
         }
 
         /// <summary>
-        /// 追加字节到文件流
+        /// 设置当前写入文件
         /// </summary>
-        /// <param name="buffer"> 被追加到文件的字节数组 </param>
-        /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter Append(byte[] buffer)
+        private void SetNewWirteFile()
         {
-            if (_writer == null)
+            if (CheckAndSetDeletedFileTime()) //检查时间,判断是否启动删除文件程序
             {
-                throw new ObjectDisposedException("流已关闭");
+                Task.Run(() => Delete(FileRetentionDays));
             }
-            if ((buffer == null) || (buffer.Length == 0))
+            //获取写入文件夹
+            var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DirectoryPath, DateTime.Now.ToString("yyyyMMddHH"));
+            if (Directory.Exists(path) == false)
             {
-                return this;
+                Directory.CreateDirectory(path);
             }
-            _writer.Write(buffer, 0, buffer.Length);
-            return this;
-        }
-
-        /// <summary>
-        /// 追加一个新行
-        /// </summary>
-        /// <exception cref="IOException"> 发生了 I/O 错误。- 或 -另一个线程可能已导致操作系统的文件句柄位置发生意外更改。 </exception>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter AppendLine()
-        {
-            if (_writer == null)
+            //获取最大文件编号
+            var max = GetMaxFileNumber(path);
+            while (true)
             {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            switch (_Newline.Length)
-            {
-                case 1:
-                    _writer.WriteByte(_Newline[0]);
+                var file = GetFile(path, max);
+                try
+                {
+                    var stream = new FileStream(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read, (int)FileMaxSize + 4069); //尝试打开文件
+                    var source = Interlocked.Exchange(ref _innerStream, stream); //切换文件流
+                    source?.Flush();
+                    source?.Dispose(); //释放前一个文件流写入通道
+                    if (stream.Position == 0)
+                    {
+                        stream.Write(_Utf8Head, 0, _Utf8Head.Length); //如果文件是新的,写入文件头
+                    }
+                    FilePath = file.FullName;
                     break;
-                case 2:
-                    _writer.WriteByte(_Newline[0]);
-                    _writer.WriteByte(_Newline[1]);
-                    break;
-                default:
-                    _writer.Write(_Newline, 0, _Newline.Length);
-                    break;
+                }
+                catch (Exception ex)
+                {
+                    max++; //如果文件打开失败,忽略这个文件
+                    Logger?.Error(ex, $"文件({file.FullName})打开失败");
+                }
             }
-            return this;
         }
 
-        /// <summary>
-        /// 追加一个空格
-        /// </summary>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter AppendWhiteSpace()
-        {
-            if (_writer == null)
-            {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            _writer.WriteByte(_Space);
-            return this;
-        }
-
-        /// <summary>
-        /// 追加一个分号
-        /// </summary>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter AppendSemicolon()
-        {
-            if (_writer == null)
-            {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            _writer.WriteByte(_Semicolon);
-            return this;
-        }
-
-        /// <summary>
-        /// 追加一个冒号
-        /// </summary>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter AppendColon()
-        {
-            if (_writer == null)
-            {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            _writer.WriteByte(_Colon);
-            return this;
-        }
-
-        /// <summary>
-        /// 追加一个逗号
-        /// </summary>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        /// <exception cref="NotSupportedException"> 当前流实例不支持写入。 </exception>
-        public FileWriter AppendComma()
-        {
-            if (_writer == null)
-            {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            _writer.WriteByte(_Comma);
-            return this;
-        }
-
-        /// <summary>
-        /// 刷新缓存到
-        /// </summary>
-        /// <exception cref="IOException"> 发生了 I/O 错误。 </exception>
-        /// <exception cref="ObjectDisposedException"> 流已关闭。 </exception>
-        public void Flush() => _writer?.Flush();
-
-        /// <summary>
-        /// 追加一个字节
-        /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public FileWriter AppendByte(byte value)
-        {
-            if (_writer == null)
-            {
-                throw new ObjectDisposedException("流已关闭");
-            }
-            _writer.WriteByte(value);
-            return this;
-        }
+        #endregion Private Methods
     }
 }

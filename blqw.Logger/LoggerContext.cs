@@ -12,7 +12,7 @@ namespace blqw.Logger
         /// <summary>
         /// 上下文字段
         /// </summary>
-        private const string CONTEXT_FIELD = "blqw.Logger.LoggerContext";
+        private const string CONTEXT_FIELD = nameof(blqw) + "." + nameof(Logger) + "." + nameof(LoggerContext);
 
         /// <summary>
         /// 上下文中需要存储的值
@@ -20,7 +20,7 @@ namespace blqw.Logger
         private object[] _values;
 
         private TraceEventType _minLevel;
-        private Guid _logId;
+        private Guid _contextID;
         private bool _isNew;
         private bool _isInitialized;
 
@@ -34,20 +34,20 @@ namespace blqw.Logger
                 _values = (object[]) CallContext.GetData(CONTEXT_FIELD);
                 if (_values != null)
                 {
-                    _logId = (Guid) _values[0];
+                    _contextID = (Guid) _values[0];
                     _minLevel = (TraceEventType) _values[1];
                     _isNew = false;
                 }
                 else if (create)
                 {
-                    _logId = Trace.CorrelationManager.ActivityId;
+                    _contextID = Trace.CorrelationManager.ActivityId;
                     _minLevel = 0;
                     _isNew = true;
-                    if (_logId == Guid.Empty)
+                    if (_contextID == Guid.Empty)
                     {
-                        Trace.CorrelationManager.ActivityId = _logId = Guid.NewGuid();
+                        Trace.CorrelationManager.ActivityId = _contextID = Guid.NewGuid();
                     }
-                    _values = new object[] { _logId, _minLevel };
+                    _values = new object[] { _contextID, _minLevel };
                     CallContext.SetData(CONTEXT_FIELD, _values);
                 }
                 else
@@ -82,17 +82,17 @@ namespace blqw.Logger
         /// <summary>
         /// 日志id
         /// </summary>
-        public Guid LogID
+        public Guid ContextID
         {
             get
             {
                 Initialize();
-                return _logId;
+                return _contextID;
             }
             private set
             {
                 Initialize();
-                _logId = value;
+                _contextID = value;
             }
         }
 
