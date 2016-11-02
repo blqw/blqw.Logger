@@ -8,10 +8,6 @@ namespace blqw.Logger
     /// </summary>
     public class FileTraceListener : TraceListenerBase
     {
-        private int _batchMaxCount = -1;
-        private TimeSpan _batchMaxWait = TimeSpan.Zero;
-        private int _queueMaxCount = -1;
-
         private IWriter _writer;
 
         /// <summary>
@@ -28,88 +24,19 @@ namespace blqw.Logger
 
 
         /// <summary>
-        /// 批处理最大数量
+        /// 队列中等待的最大数量
         /// </summary>
-        protected int QueueMaxCount
-        {
-            get
-            {
-                if (_queueMaxCount < 0)
-                {
-                    int i;
-                    if (int.TryParse(Attributes["QueueMaxCount"], out i))
-                    {
-                        return i;
-                    }
-                    throw new NotSupportedException("该属性未初始化");
-                }
-                return _queueMaxCount;
-            }
-            set
-            {
-                if (value < 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(value), "value不能小于0");
-                }
-                _queueMaxCount = value;
-            }
-        }
+        public int QueueMaxCount { get; protected set; }
 
         /// <summary>
         /// 批处理最大数量
         /// </summary>
-        protected int BatchMaxCount
-        {
-            get
-            {
-                if (_batchMaxCount < 0)
-                {
-                    int i;
-                    if (int.TryParse(Attributes["BatchMaxCount"], out i))
-                    {
-                        return i;
-                    }
-                    throw new NotSupportedException("该属性未初始化");
-                }
-                return _batchMaxCount;
-            }
-            set
-            {
-                if (value < 0)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(value), "value不能小于0");
-                }
-                _batchMaxCount = value;
-            }
-        }
+        public int BatchMaxCount { get; protected set; }
 
         /// <summary>
         /// 批处理最大等待时间
         /// </summary>
-        protected TimeSpan BatchMaxWait
-        {
-            get
-            {
-                if (_batchMaxWait == TimeSpan.Zero)
-                {
-                    int i;
-                    if (int.TryParse(Attributes["BatchMaxWait"], out i))
-                    {
-                        return TimeSpan.FromSeconds(i);
-                    }
-                    throw new NotSupportedException("该属性未初始化");
-                }
-                return _batchMaxWait;
-            }
-            set
-            {
-                if (value == TimeSpan.Zero)
-                {
-                    throw new ArgumentOutOfRangeException(nameof(value), "value不能等于TimeSpan.Zero");
-                }
-                _batchMaxWait = value;
-            }
-        }
+        public TimeSpan BatchMaxWait { get; protected set; }
 
         /// <summary>
         /// 获取写入器实例
@@ -120,32 +47,33 @@ namespace blqw.Logger
             {
                 if (_writer == null)
                 {
-                    var type = Type.GetType(Attributes["Writer"], false, true);
-                    if (type != null)
-                    {
-                        var ctor = type.GetConstructor(new[] { typeof(string) });
-                        Writer = (IWriter)(ctor?.Invoke(new object[] { InitializeData }) ?? Activator.CreateInstance(type));
-                    }
-                    else if (Attributes["Writer"] == null)
+                    if (InitializeData == null)
                     {
                         Writer = new FastFileWriter();
                     }
                     else
                     {
-                        throw new TypeLoadException("找不到类型" + Attributes["Writer"]);
+                        var type = Type.GetType(InitializeData, false, true);
+                        if (type != null)
+                        {
+                            Writer = (IWriter)Activator.CreateInstance(type);
+                        }
+                        else
+                        {
+                            throw new TypeLoadException("找不到类型" + Attributes["writer"]);
+                        }
                     }
                 }
                 return _writer;
             }
             set
             {
+
                 if (value == null)
                 {
                     throw new ArgumentOutOfRangeException(nameof(value), "value不能为null");
                 }
                 _writer = value;
-                _writer.Logger = InnerLogger;
-                _writer.Initialize(this);
             }
         }
 
@@ -153,11 +81,75 @@ namespace blqw.Logger
         /// 创建一个队列
         /// </summary>
         /// <returns> </returns>
-        protected override WriteQueue CreateQueue() => new WriteQueue(Writer, QueueMaxCount, BatchMaxCount, BatchMaxWait);
+        protected sealed override WriteQueue CreateQueue()
+        {
+            var writer = Writer;
+            writer.Logger = InnerLogger;
+            writer.Initialize(this);
+            Initialize();
+            return new WriteQueue(writer, QueueMaxCount, BatchMaxCount, BatchMaxWait);
+        }
 
+        protected virtual void Initialize()
+        {
+            var batchMaxWait = Attributes["batchMaxWait"];
+            if (batchMaxWait != null)
+            {
+                int i;
+                if (int.TryParse(Attributes["batchMaxWait"], out i))
+                {
+                    BatchMaxWait = TimeSpan.FromSeconds(i);
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(batchMaxWait), "[batchMaxWait]属性值有误");
+                }
+            }
+            else if (BatchMaxWait == TimeSpan.Zero)
+            {
+                BatchMaxWait = TimeSpan.FromSeconds(10);
+            }
+
+            var batchMaxCount = Attributes["batchMaxCount"];
+            if (batchMaxCount != null)
+            {
+                int i;
+                if (int.TryParse(Attributes["batchMaxCount"], out i))
+                {
+                    BatchMaxCount = i;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(batchMaxCount), "[batchMaxCount]属性值有误");
+                }
+            }
+            else if (BatchMaxCount == 0)
+            {
+                BatchMaxCount = 2000;
+            }
+
+            var queueMaxCount = Attributes["queueMaxCount"];
+            if (queueMaxCount != null)
+            {
+                int i;
+                if (int.TryParse(Attributes["queueMaxCount"], out i))
+                {
+                    QueueMaxCount = i;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(queueMaxCount), "[queueMaxCount]属性值有误");
+                }
+            }
+            else if (QueueMaxCount == 0)
+            {
+                QueueMaxCount = 1000 * 10000;
+            }
+
+        }
 
         /// <summary> 获取跟踪侦听器支持的自定义特性。 </summary>
         /// <returns> 为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。 </returns>
-        protected override string[] GetSupportedAttributes() => UnionArray(new[] { "QueueMaxCount", "BatchMaxCount", "BatchMaxWait", "Writer" }, Writer.GetSupportedAttributes());
+        protected override string[] GetSupportedAttributes() => UnionArray(new[] { "queueMaxCount", "batchMaxCount", "batchMaxWait", "writer" }, Writer.GetSupportedAttributes());
     }
 }

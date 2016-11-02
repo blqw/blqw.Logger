@@ -11,6 +11,8 @@ namespace blqw.Logger
     public struct LogItem 
     {
         private readonly bool _notNull;
+        private string _message;
+        private object _content;
 
         public LogItem(TraceEventType level)
             : this()
@@ -48,12 +50,36 @@ namespace blqw.Logger
         /// <summary>
         /// 日志消息
         /// </summary>
-        public string Message { get; set; }
+        public string Message
+        {
+            get
+            {
+                return _message 
+                    ?? _content as string
+                    ?? (_content as IConvertible)?.ToString(null)
+                    ?? (_content as IFormattable)?.ToString(null, null);
+            }
+            set { _message = value; }
+        }
 
         /// <summary>
         /// 日志内容
         /// </summary>
-        public object Content { get; set; }
+        public object Content
+        {
+            get
+            {
+                if (_message == null)
+                {
+                    if (_content is string || _content is IConvertible || _content is IFormattable)
+                    {
+                        return null;
+                    }
+                }
+                return _content;
+            }
+            set { _content = value; }
+        }
 
         /// <summary>
         /// 第一条日志

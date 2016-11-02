@@ -192,22 +192,22 @@ namespace blqw.Logger
                 for (int i = 1, length = logs.Count; i < length; i++)
                 {
                     log = logs[i];
-                    var message = log.Message ?? log.Content as string;
+                    var message = log.Message;
                     base.Append(log.Time.ToString("HH:mm:ss.fff"));
-                    base.AppendComma();
+                    base.Append(UTF8Bytes.Comma);
                     WriteLevel(log.Level);
-                    base.AppendComma();
+                    base.Append(UTF8Bytes.Comma);
                     base.Append(DoubleDecode(log.Category ?? log.Source)); //没有分类时,显示来源
-                    base.AppendComma(); 
+                    base.Append(UTF8Bytes.Comma);
                     base.Append(DoubleDecode(message ?? "无"));
-                    base.AppendComma();
+                    base.Append(UTF8Bytes.Comma);
                     WriteCallstack(log);
-                    base.AppendComma();
+                    base.Append(UTF8Bytes.Comma);
                     if (message == null)
                     {
                         WriteContent(log.Content);
                     }
-                    base.AppendLine();
+                    base.Append(UTF8Bytes.Newline);
                 }
                 AppendComma();
                 //追加索引

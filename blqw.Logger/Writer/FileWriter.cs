@@ -199,7 +199,7 @@ namespace blqw.Logger
         public void AppendWhiteSpace() => InnerStream.WriteByte(_Space);
 
         #endregion
-        
+
         /// <summary>
         /// 如果文件已满则改变当前文件
         /// </summary>
@@ -238,7 +238,7 @@ namespace blqw.Logger
         /// 获取跟踪侦听器支持的自定义特性。
         /// </summary>
         /// <returns> 为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。 </returns>
-        public virtual string[] GetSupportedAttributes() => new []{ "initializeData", "fileMaxSize", "fileRetentionDays" };
+        public virtual string[] GetSupportedAttributes() => new[] { "dir", "initializeData", "fileMaxSize", "fileRetentionDays" };
 
         /// <summary>
         /// 初始化写入器
@@ -253,42 +253,32 @@ namespace blqw.Logger
             {
                 throw new ArgumentNullException(nameof(listener));
             }
-            var initializeData = listener.Attributes["initializeData"];
+            var dir = listener.Attributes["dir"];
             var fileMaxSize = listener.Attributes["fileMaxSize"];
             var fileRetentionDays = listener.Attributes["fileRetentionDays"];
-            if (initializeData == null)
+            if (dir != null)
             {
-                if (DirectoryPath == null)
-                {
-                    throw new ArgumentNullException(nameof(initializeData), "[initializeData]不能为空");
-                }
+                DirectoryPath = dir;
             }
-            DirectoryPath = initializeData;
-            if (fileMaxSize == null)
+            else if (DirectoryPath == null)
             {
-                if (FileMaxSize == 0)
-                {
-                    FileMaxSize = 5 * 1024 * 1024; //兆
-                }
+                throw new ArgumentNullException(nameof(dir), "[dir]不能为空");
             }
-            else
+            if (fileMaxSize != null)
             {
                 long limit;
                 long.TryParse(fileMaxSize, out limit);
-                if ((limit < 1 * 1024 * 1024) || (limit > 1024 * 1024 * 1024))
+                if ((limit < 1*1024*1024) || (limit > 1024*1024*1024))
                 {
                     throw new ArgumentOutOfRangeException(nameof(fileMaxSize), "[fileMaxSize]文件限制大小不能小于1048576(1MB)或大于1073741824(1GB)");
                 }
                 FileMaxSize = limit;
             }
-            if (fileRetentionDays == null)
+            else if (FileMaxSize == 0)
             {
-                if (FileRetentionDays == 0)
-                {
-                    FileRetentionDays = 2;
-                }
+                FileMaxSize = 5 * 1024 * 1024; //兆
             }
-            else
+            if (fileRetentionDays != null)
             {
                 int days;
                 int.TryParse(fileRetentionDays, out days);
@@ -297,6 +287,10 @@ namespace blqw.Logger
                     throw new ArgumentOutOfRangeException(nameof(fileRetentionDays), "[fileRetentionDays]文件保留天数不能少于1天");
                 }
                 FileRetentionDays = days;
+            }
+            else if (FileRetentionDays == 0)
+            {
+                FileRetentionDays = 2;
             }
 
             SetNewWirteFile();
