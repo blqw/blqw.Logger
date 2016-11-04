@@ -40,6 +40,7 @@ namespace blqw.Logger
         {
             public static byte[] Assembly { get; } = Encoding.UTF8.GetBytes("Assembly : ");
             public static byte[] Comma { get; } = Encoding.UTF8.GetBytes("%2C");
+            public static byte[] Star { get; } = Encoding.UTF8.GetBytes("*");
             public static byte[] Data { get; } = Encoding.UTF8.GetBytes("Data : ");
             public static byte[] Detail { get; } = Encoding.UTF8.GetBytes("Detail : ");
             public static byte[] Method { get; } = Encoding.UTF8.GetBytes("Method : ");
@@ -197,7 +198,20 @@ namespace blqw.Logger
                     base.Append(UTF8Bytes.Comma);
                     WriteLevel(log.Level);
                     base.Append(UTF8Bytes.Comma);
-                    base.Append(DoubleDecode(log.Category ?? log.Source)); //没有分类时,显示来源
+                    if (log.Level > TraceEventType.Warning || string.IsNullOrEmpty(log.Category))
+                    {
+                        base.Append(DoubleDecode(log.Category ?? log.Source)); //没有分类时,显示来源
+                    }
+                    else if (log.Category[0] == '*' && log.Category[log.Category.Length - 1] == '*')
+                    {
+                        base.Append(DoubleDecode(log.Category)); //没有分类时,显示来源
+                    }
+                    else
+                    {
+                        base.Append(UTF8Bytes.Star);
+                        base.Append(DoubleDecode(log.Category)); //没有分类时,显示来源
+                        base.Append(UTF8Bytes.Star);
+                    }
                     base.Append(UTF8Bytes.Comma);
                     base.Append(DoubleDecode(message ?? "无"));
                     base.Append(UTF8Bytes.Comma);

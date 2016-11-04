@@ -20,6 +20,10 @@
       * 修正第一次并发时会生成多个空白日志的问题
       [1.3.0-beta] 2016.11.02
       * 允许很方便的自定义文件写入操作
+      [1.3.1-beta] 2016.11.04
+      * 优化SLS日志警告以上的提示
+      * 修复异常记录可能会丢失message的问题
+      * 加入查看日志的页面`look.html`
     </releaseNotes>
     <copyright> Copyright 2016 </copyright>
     <tags> blqw Logger Log Debug Trace Diagnostics </tags>
@@ -29,5 +33,6 @@
     <file src="web.config.install.xdt" target="content" />
     <file src="App.config.uninstall.xdt" target="content" />
     <file src="web.config.uninstall.xdt" target="content" />
+    <file src="look.html" target="content" />
   </files>
 </package>

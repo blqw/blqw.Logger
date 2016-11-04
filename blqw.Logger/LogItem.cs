@@ -56,6 +56,7 @@ namespace blqw.Logger
             {
                 return _message 
                     ?? _content as string
+                    ?? (_content as Exception)?.Message
                     ?? (_content as IConvertible)?.ToString(null)
                     ?? (_content as IFormattable)?.ToString(null, null);
             }

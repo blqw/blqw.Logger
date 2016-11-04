@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using blqw;
+using blqw.IOC;
 using blqw.Logger;
 
 namespace Demo
@@ -20,6 +21,8 @@ namespace Demo
             logger.Listeners.Add(new FileTraceListener(new MyLogWriter("d:\\test_logs")));
             return logger;
         }
+
+        //private static TraceSource Logger { get; } = new LoggerSource("test", SourceLevels.All);
 
         static void Main(string[] args)
         {
@@ -41,10 +44,7 @@ namespace Demo
 
     public class MyLogWriter : FileWriter
     {
-        public MyLogWriter()
-        {
-            
-        }
+        public MyLogWriter() { }
 
         public MyLogWriter(string dir)
         {
@@ -57,8 +57,11 @@ namespace Demo
         /// <param name="item"> </param>
         public override void Append(LogItem item)
         {
-            base.Append(item.ToJsonString());
-            base.AppendLine();
+            if (!item.IsFirst && !item.IsLast)
+            {
+                base.Append(item.ToJsonString());
+                base.AppendLine();
+            }
         }
     }
 }
