@@ -48,7 +48,7 @@ namespace blqw.Logger
         /// <param name="member"> </param>
         /// <param name="line"> </param>
         /// <param name="file"> </param>
-        public static void Log(this TraceSource source, TraceEventType type, string title, string message = null, object data = null,
+        public static void Log(this TraceSource source, TraceEventType type, string message , string title = null, object data = null,
             [CallerMemberName] string member = null, [CallerLineNumber] int line = 0,
             [CallerFilePath] string file = null)
         {
@@ -67,6 +67,7 @@ namespace blqw.Logger
                     File = file,
                     Method = member,
                     LineNumber = line,
+                    TraceEventID = 1,
                     Content = data,
                 });
             }
@@ -84,10 +85,10 @@ namespace blqw.Logger
         /// <param name="member"> </param>
         /// <param name="line"> </param>
         /// <param name="file"> </param>
-        public static void Log(this TraceSource source, string title, string message = null, object data = null,
+        public static void Log(this TraceSource source, string message , string title = null, object data = null,
                 [CallerMemberName] string member = null, [CallerLineNumber] int line = 0,
                 [CallerFilePath] string file = null)
-            => Log(source, TraceEventType.Verbose, title, message, data, member, line, file);
+            => Log(source, TraceEventType.Verbose, message, title,  data, member, line, file);
 
         /// <summary>
         /// 输出警告信息
@@ -97,10 +98,10 @@ namespace blqw.Logger
         /// <param name="member"> </param>
         /// <param name="line"> </param>
         /// <param name="file"> </param>
-        public static void Warn(this TraceSource source, string title, string message = null, object data = null,
+        public static void Warn(this TraceSource source, string message , string title = null, object data = null,
                 [CallerMemberName] string member = null, [CallerLineNumber] int line = 0,
                 [CallerFilePath] string file = null)
-            => Log(source, TraceEventType.Warning, title, message, data, member, line, file);
+            => Log(source, TraceEventType.Warning, message, title,  data, member, line, file);
 
         /// <summary>
         /// 输出提示信息
@@ -110,10 +111,10 @@ namespace blqw.Logger
         /// <param name="member"> </param>
         /// <param name="line"> </param>
         /// <param name="file"> </param>
-        public static void Info(this TraceSource source, string title, string message = null, object data = null,
+        public static void Info(this TraceSource source, string message , string title = null, object data = null,
                 [CallerMemberName] string member = null, [CallerLineNumber] int line = 0,
                 [CallerFilePath] string file = null)
-            => Log(source, TraceEventType.Information, title, message, data, member, line, file);
+            => Log(source, TraceEventType.Information, message, title,  data, member, line, file);
 
 
         /// <summary>
@@ -126,10 +127,10 @@ namespace blqw.Logger
         /// <param name="line"> </param>
         /// <param name="file"> </param>
         [Conditional("DEBUG")]
-        public static void Debug(this TraceSource source, TraceEventType type, string title, string message = null, object data = null,
+        public static void Debug(this TraceSource source, TraceEventType type, string message , string title = null, object data = null,
             [CallerMemberName] string member = null, [CallerLineNumber] int line = 0,
             [CallerFilePath] string file = null)
-            => Log(source, type, title, message, data, member, line, file);
+            => Log(source, type, message, title,  data, member, line, file);
 
 
         /// <summary>
@@ -171,23 +172,21 @@ namespace blqw.Logger
         /// </summary>
         public static void Entry(this TraceSource source, [CallerMemberName] string member = null, object data = null,
             [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
-        {
-            Log(source, TraceEventType.Start, $"进入方法 {member}", null, data, member, line, file);
-        }
+            => Log(source, TraceEventType.Start, null, $"进入方法 {member}", data, member, line, file);
 
         /// <summary>
         /// 离开方法并有一个返回值
         /// </summary>
         public static void Return(this TraceSource source, string @return, [CallerMemberName] string member = null, object data = null,
             [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
-            => Log(source, TraceEventType.Stop, $"离开方法 {member}", $"return {@return}", data, member, line, file);
+            => Log(source, TraceEventType.Stop, $"return {@return}", $"离开方法 {member}", data, member, line, file);
 
         /// <summary>
         /// 离开方法
         /// </summary>
         public static void Exit(this TraceSource source, [CallerMemberName] string member = null, object data = null,
             [CallerLineNumber] int line = 0, [CallerFilePath] string file = null)
-            => Log(source, TraceEventType.Stop, $"离开方法 {member}", null, data, member, line, file);
+            => Log(source, TraceEventType.Stop, null, $"离开方法 {member}", data, member, line, file);
 
         /// <summary>
         /// 刷新日志

@@ -24,6 +24,8 @@
       * 优化SLS日志警告以上的提示
       * 修复异常记录可能会丢失message的问题
       * 加入查看日志的页面`look.html`
+      [1.3.2-beta] 2016.11.07
+      * 修正拓展方法签名不合理的地方
     </releaseNotes>
     <copyright> Copyright 2016 </copyright>
     <tags> blqw Logger Log Debug Trace Diagnostics </tags>

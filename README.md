@@ -29,6 +29,78 @@
 </system.diagnostics>
 ```
 
+## 自定义文件写入格式
+### 自定义文件写入
+```csharp
+public class MyLogWriter : FileWriter
+{
+    public MyLogWriter() { }
+
+    public MyLogWriter(string dir)
+    {
+        DirectoryPath = dir;
+    }
+
+    /// <summary>
+    /// 追加日志
+    /// </summary>
+    /// <param name="item"> </param>
+    public override void Append(LogItem item)
+    {
+        if (!item.IsFirst && !item.IsLast)
+        {
+            base.Append(item.ToJsonString());
+            base.AppendLine();
+        }
+    }
+}
+```
+
+### 手写代码实例化监听器
+```csharp
+private static TraceSource Logger { get; } = InitLogger();
+
+private static TraceSource InitLogger()
+{
+    var logger = new TraceSource("test", SourceLevels.All);
+    logger.Listeners.Clear();
+    logger.Listeners.Add(new FileTraceListener(new MyLogWriter("d:\\test_logs")));
+    return logger;
+}
+```
+### 使用配置文件实例化监听器
+```xml
+<system.diagnostics>
+    <sources>
+        <source name="blqw.Logger" switchValue="Warning">
+            <listeners>
+                <add name="test1" type="FileTraceListener, blqw.Logger" directoryPath="d:\test_log"     initializeData="Demo.MyLogWriter,Demo" />
+            </listeners>
+        </source>
+    </sources>
+    <trace autoflush="false" useGlobalLock="false">
+        <listeners>
+            <add name="test2" type="FileTraceListener, blqw.Logger" directoryPath="d:\test_log"     initializeData="Demo.MyLogWriter,Demo" />
+        </listeners>
+    </trace>
+</system.diagnostics>
+
+```
+
+## `TraceSource`拓展方法
+```csharp
+var Logger = new TraceSource("test",TraceEventType.All);
+Logger.Log(TraceEventType.Verbose, "测试"); //日志等级自定义
+Logger.Debug(TraceEventType.Verbose, "测试"); //日志等级自定义  [Conditional("DEBUG")]
+Logger.Log("测试"); //等级=Verbose
+Logger.Warn("测试"); //等级=Warning 
+Logger.Info("测试"); //等级=Information
+Logger.Error(new Exception("测试")); //等级=Error
+Logger.Entry(); // 等级=Start ,进入方法
+Logger.Exit(); // 等级=Stop ,离开方法
+Logger.Return("1"); // 等级=Stop ,离开方法并记录返回值
+```
+
 ## 性能
 本地测试500线程 每个线程循环1000次 每次写入100条日 共5000万条日志  
 测试机配置: i7 6700k 内存ddr4 3200 32G 硬盘 希捷 1T w:100,r:150 ,缓存队列 5000万  
@@ -72,6 +144,9 @@ output {
 }
 ```
 ## 更新日志
+### [1.3.2-beta] 2016.11.07
+* 修正拓展方法签名不合理的地方
+
 ### [1.3.1-beta] 2016.11.04
 * 优化SLS日志警告以上的提示
 * 修复异常记录可能会丢失message的问题
