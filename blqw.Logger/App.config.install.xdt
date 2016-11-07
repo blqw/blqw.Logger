@@ -6,7 +6,7 @@
       <source name="blqw.InnerLogger" switchValue="Error"
               xdt:Transform="InsertIfMissing" /> <!-- 该节点可删除 -->
     </sources>
-    <trace autoflush="false" xdt:Transform="InsertIfMissing">
+    <trace autoflush="false" useGlobalLock="false" xdt:Transform="InsertIfMissing">
       <listeners xdt:Transform="InsertIfMissing">
         <add name="{日志文件夹名称}" type="SLSTraceListener, blqw.InnerLogger"
              initializeData="{日志文件路径,可忽略,默认'bin\..\sls_logs'}"
