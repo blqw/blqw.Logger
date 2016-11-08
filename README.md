@@ -1,6 +1,39 @@
 # blqw.Logger
 基于微软 System.Diagnostics.TraceListener 封装
 
+## 配置文件说明
+[MSDN说明](https://msdn.microsoft.com/query/dev14.query?appId=Dev14IDEF1&l=ZH-CN&k=k(http%3A%2F%2Fschemas.microsoft.com%2F.NetConfiguration%2Fv2.0%23configuration%2Fsystem.diagnostics);k(http%3A%2F%2Fschemas.microsoft.com%2F.NetConfiguration%2Fv2.0%23system.diagnostics);k(http%3A%2F%2Fschemas.microsoft.com%2F.NetConfiguration%2Fv2.0%23configuration);k(vs.xmleditor);k(TargetFrameworkMoniker-.NETFramework,Version%3Dv4.5)&rd=true)
+```xml
+<system.diagnostics>
+  <trace autoflush="false" useGlobalLock="false">
+    <listeners>
+      <clear /> <!-- 清除默认侦听器 -->
+      <add name"logger1" type="FileTraceListener, blqw.Logger" initializeData="d:\test_logs" />
+    </listeners>
+  </trace>
+</system.diagnostics>
+```
+监听器属性说明
+* `type` : (必须)侦听器类型,固定为SLSTraceListener, blqw.Logger
+* `initializeData` : 日志写入器的类型，默认"blqw.Logger.FastFileWriter, blqw.Logger"
+* `queueMaxCount` : 队列中的最大数量，默认 1000万 [限制不能小于100]
+* `batchMaxCount` : 批处理最大数量，默认2000 [限制不能小于1]
+* `batchMaxWait` : 批处理最大等待时间(单位:秒)，默认10 [限制不能小于1]
+* `level` : 跟踪日志等级(选填,默认为All,可选值参考System.Diagnostics.SourceLevels属性)
+* `directoryPath` : 日志文件所在文件夹路径，默认当前文件夹如果是bin目录，则在上级，否则在当前目录
+* `fileMaxSize` : 日志文件限制大小(单位:字节),默认 5*1024*1024 (5M) [限制1MB~1GB]
+* `fileRetentionDays` : 文件保留天数，默认2 [限制不能小于1]
+
+## 日志组件内置日志
+记录日志组件自身的日志信息,默认只记录异常(`Error`),可以由开关调整默认记录等级
+```xml
+<switches>
+    <add name="blqw.Logger" value="Off"/> <!-- 禁用组件内置日志 可选值参考System.Diagnostics.SourceLevels属性-->
+</switches>
+```
+
+**内置日志输出到系统事件，需要管理员权限**  
+添加配置
 ```xml
 <system.diagnostics>
   <sources>
@@ -11,16 +44,26 @@
       </listeners>
     </source>
   </sources>
+</system.diagnostics>
+```
+![Showentlog](showentlog.png)
+
+## 性能
+本地测试500线程 每个线程循环1000次 每次写入100条日 共5000万条日志  
+测试机配置: i7 6700k 内存ddr4 3200 32G 硬盘 希捷 1T w:100,r:150 ,缓存队列 5000万  
+压入日志耗时:73s 全部写完耗时:250s  
+压入日志CPU:50\~60% 写日志CPU:20\~30%  
+内存峰值:2700Mb 日志量:2.64G 文件数:539 硬盘写入:11mb/秒  
+写入日志:20万条/s
+
+## 关于预定义格式SLS日志
+### 配置文件
+```xml
+<system.diagnostics>
   <trace autoflush="false" useGlobalLock="false">
     <listeners>
       <clear /> <!-- 清除默认侦听器 -->
-      <add name"logger1" type="SLSTraceListener, blqw.Logger" initializeData="d:\sls2_logs" queueMaxLength="50000000" level="Error" />
-      <!--
-          type : 侦听器类型,固定为SLSTraceListener, blqw.Logger(必须)
-          initializeData : 日志文件记录位置(必须)
-          queueMaxLength : 最大缓存队列长度(选填,默认50000000)
-          level : 跟踪日志等级(选填,默认为All,可选值参考System.Diagnostics.SourceLevels属性)
-       -->
+      <add name"logger1" type="SLSTraceListener, blqw.Logger" initializeData="d:\sls_logs" level="Error" />
     </listeners>
     <switches>
       <add name="blqw.Logger" value="0"/> <!-- 禁用组件内置日志 -->
@@ -28,8 +71,10 @@
   </trace>
 </system.diagnostics>
 ```
+### 页面查看
+[查看](blqw.Logger/look.html)
 
-## 自定义文件写入格式
+## 关于自定义文件写入格式
 ### 自定义文件写入
 ```csharp
 public class MyLogWriter : FileWriter
@@ -87,7 +132,7 @@ private static TraceSource InitLogger()
 
 ```
 
-## `TraceSource`拓展方法
+## 关于`TraceSource`拓展方法
 ```csharp
 var Logger = new TraceSource("test",TraceEventType.All);
 Logger.Log(TraceEventType.Verbose, "测试"); //日志等级自定义
@@ -101,15 +146,17 @@ Logger.Exit(); // 等级=Stop ,离开方法
 Logger.Return("1"); // 等级=Stop ,离开方法并记录返回值
 ```
 
-## 性能
-本地测试500线程 每个线程循环1000次 每次写入100条日 共5000万条日志  
-测试机配置: i7 6700k 内存ddr4 3200 32G 硬盘 希捷 1T w:100,r:150 ,缓存队列 5000万  
-压入日志耗时:73s 全部写完耗时:250s  
-压入日志CPU:50\~60% 写日志CPU:20\~30%  
-内存峰值:2700Mb 日志量:2.64G 文件数:539 硬盘写入:11mb/秒  
-写入日志:20万条/s
+## 关于调试
+### 输出窗口
+当`Debugger.IsAttached`(即进入附加进程调试模式时)，将会在输出列表中打印日志
+![Showlog](showlog.png)
+### 输出到文件
+日志从内存到文件有一个延迟时间，当`N`秒无操作或缓存日志操作`M`条时输出到文件  
+`N`由属性`batchMaxWait`控制，`M`由属性`batchMaxCount`控制  
+但当`Debugger.IsAttached`时，`batchMaxWait`强制设置为`1`（1秒无日志输出到文件）  
 
-## logstash2.2.2
+## `SLSTraceListener` 使用
+### logstash2.2.2 配置
 cvs.conf
 ``` 
 input {

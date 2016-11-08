@@ -38,49 +38,30 @@ public sealed class SLSTraceListener : FileTraceListener
         object[] args, object data1, object[] data) => WritedLevel != SourceLevels.Off;
 
     private int _initialized = 0;
+
     /// <summary>
     /// 获取当前线程中的日志跟踪等级
     /// </summary>
-    protected override SourceLevels WritedLevel
-    {
-        get
-        {
-            if (_initialized == 1)
-            {
-                return _writedLevel;
-            }
-            if (Interlocked.Exchange(ref _initialized, 1) == 0)
-            {
-                if (Enum.TryParse(Attributes["level"] ?? "All", true, out _writedLevel) == false)
-                {
-                    // ReSharper disable once NotResolvedInText
-                    throw new ArgumentOutOfRangeException("level", "level属性值无效,请参考: System.Diagnostics.SourceLevels");
-                }
-            }
-            return _writedLevel;
-        }
-    }
+    protected override SourceLevels WritedLevel => _writedLevel;
 
     /// <summary>
     /// 获取跟踪侦听器支持的自定义特性。
     /// </summary>
     /// <returns> 为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。 </returns>
     protected override string[] GetSupportedAttributes() => UnionArray(new[] { "level", "queueMaxLength" }, base.GetSupportedAttributes());
-    
+
 
     protected override void Initialize()
     {
-        QueueMaxCount = 5000*10000;
-        base.Initialize();
-        int i;
-        if (int.TryParse(Attributes["queueMaxLength"], out i))
+        SourceLevels writedLevel;
+        if (Enum.TryParse(Attributes["level"] ?? "All", true, out writedLevel) == false)
         {
-            if (i < 10000)
-            {
-                throw new ArgumentOutOfRangeException("queueMaxLength", "[queueMaxLength]不能小于10000");
-            }
-            QueueMaxCount = i;
+            // ReSharper disable once NotResolvedInText
+            throw new ArgumentOutOfRangeException("level", "level属性值无效,请参考: System.Diagnostics.SourceLevels");
         }
+        WritedLevel = _writedLevel;
+        QueueMaxCount = GetAttributeValue("queueMaxLength", 10000, int.MaxValue, 5000 * 10000); //兼容之前的一个坑
+        base.Initialize();
         if (Debugger.IsAttached)
         {
             BatchMaxWait = TimeSpan.FromSeconds(1);
@@ -105,5 +86,21 @@ public sealed class SLSTraceListener : FileTraceListener
             return _writer;
         }
         set { throw new NotSupportedException(); }
+    }
+
+    /// <summary>
+    /// 刷新输出缓冲区。
+    /// </summary>
+    public override void Flush()
+    {
+        if (Trace.AutoFlush)
+        {
+            //判断当前方法是否是由于主动调用 .Flush() 触发的
+            if ("Flush".Equals(new StackFrame(1, false).GetMethod().Name, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+        base.Flush();
     }
 }

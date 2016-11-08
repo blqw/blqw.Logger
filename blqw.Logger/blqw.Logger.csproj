@@ -71,6 +71,8 @@
     <None Include="web.config.uninstall.xdt" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="blqw.tools.js" />
+    <Content Include="look2.html" />
     <Content Include="look.html" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

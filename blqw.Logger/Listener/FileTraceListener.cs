@@ -125,65 +125,51 @@ public class FileTraceListener : TraceListenerBase
         return new WriteQueue(writer, QueueMaxCount, BatchMaxCount, BatchMaxWait);
     }
 
-    protected virtual void Initialize()
+    /// <summary>
+    /// 初始化当前实例
+    /// </summary>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    protected override void Initialize()
     {
-        var batchMaxWait = Attributes["batchMaxWait"];
-        if (batchMaxWait != null)
-        {
-            int i;
-            if (int.TryParse(Attributes["batchMaxWait"], out i))
-            {
-                BatchMaxWait = TimeSpan.FromSeconds(i);
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException(nameof(batchMaxWait), "[batchMaxWait]属性值有误");
-            }
-        }
-        else if (BatchMaxWait == TimeSpan.Zero)
-        {
-            BatchMaxWait = TimeSpan.FromSeconds(10);
-        }
-
-        var batchMaxCount = Attributes["batchMaxCount"];
-        if (batchMaxCount != null)
-        {
-            int i;
-            if (int.TryParse(Attributes["batchMaxCount"], out i))
-            {
-                BatchMaxCount = i;
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException(nameof(batchMaxCount), "[batchMaxCount]属性值有误");
-            }
-        }
-        else if (BatchMaxCount == 0)
-        {
-            BatchMaxCount = 2000;
-        }
-
-        var queueMaxCount = Attributes["queueMaxCount"];
-        if (queueMaxCount != null)
-        {
-            int i;
-            if (int.TryParse(Attributes["queueMaxCount"], out i))
-            {
-                QueueMaxCount = i;
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException(nameof(queueMaxCount), "[queueMaxCount]属性值有误");
-            }
-        }
-        else if (QueueMaxCount == 0)
-        {
-            QueueMaxCount = 1000 * 10000;
-        }
-
+        BatchMaxWait = TimeSpan.FromSeconds(GetAttributeValue("batchMaxWait", 1, int.MaxValue, BatchMaxWait == TimeSpan.Zero ? 10 : (int)BatchMaxWait.TotalSeconds));
+        BatchMaxCount = GetAttributeValue("batchMaxCount", 1, int.MaxValue, BatchMaxCount == 0 ? 2000 : BatchMaxCount);
+        QueueMaxCount = GetAttributeValue("queueMaxCount", 1, int.MaxValue, QueueMaxCount == 0 ? 1000 * 10000 : QueueMaxCount);
     }
+
+    /// <summary>
+    /// 获取属性的值
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="minValue"></param>
+    /// <param name="maxValue"></param>
+    /// <param name="defaultValue"></param>
+    /// <exception cref="ArgumentOutOfRangeException"></exception>
+    /// <exception cref="ArgumentException"></exception>
+    protected int GetAttributeValue(string name, int minValue, int maxValue, int defaultValue)
+    {
+        var value = Attributes[name];
+        if (value == null)
+        {
+            return defaultValue;
+        }
+        int i;
+        if (!int.TryParse(value, out i))
+        {
+            throw new ArgumentException($"[{name}]属性值错误", name);
+        }
+        if (i < minValue)
+        {
+            throw new ArgumentOutOfRangeException(name, $"[{name}]不能小于{minValue}");
+        }
+        if (i > maxValue)
+        {
+            throw new ArgumentOutOfRangeException(name, $"[{name}]不能大于{maxValue}");
+        }
+        return i;
+    }
+
 
     /// <summary> 获取跟踪侦听器支持的自定义特性。 </summary>
     /// <returns> 为跟踪侦听器支持的自定义特性命名的字符串数组；或者如果没有自定义特性，则为 null。 </returns>
-    protected override string[] GetSupportedAttributes() => UnionArray(new[] { "queueMaxCount", "batchMaxCount", "batchMaxWait", "writer" }, Writer.GetSupportedAttributes());
+    protected override string[] GetSupportedAttributes() => UnionArray(base.GetSupportedAttributes(), new[] { "queueMaxCount", "batchMaxCount", "batchMaxWait" }, Writer.GetSupportedAttributes());
 }

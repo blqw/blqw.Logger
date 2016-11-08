@@ -16,9 +16,9 @@ namespace Demo
 
         private static TraceSource InitLogger()
         {
-            var logger = new TraceSource("test", SourceLevels.All);
-            logger.Listeners.Clear();
-            logger.Listeners.Add(new FileTraceListener(new MyLogWriter("d:\\test_logs")));
+            var logger = new LoggerSource("test", SourceLevels.All);
+            //logger.Listeners.Clear();
+            //logger.Listeners.Add(new FileTraceListener(new MyLogWriter("d:\\test_logs")));
             return logger;
         }
 
