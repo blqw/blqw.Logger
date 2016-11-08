@@ -8,7 +8,7 @@ namespace blqw.Logger
     /// </summary>
     public abstract class TraceListenerBase : TraceListener
     {
-
+        private object _lock = new object();
         /// <summary>
         /// 以线程为单位记录和输出日志 构造函数 
         /// </summary>
@@ -31,7 +31,7 @@ namespace blqw.Logger
             {
                 return;
             }
-            lock (this)
+            lock (_lock)
             {
                 if (_initialize == null)
                 {
@@ -67,7 +67,7 @@ namespace blqw.Logger
 
             if (log.Content is LogItem)
             {
-                var nlog = (LogItem) log.Content;
+                var nlog = (LogItem)log.Content;
                 nlog.Listener = this;
                 if (nlog.LogGroupID == Guid.Empty)
                 {
@@ -273,7 +273,7 @@ namespace blqw.Logger
             {
                 throw new ArgumentOutOfRangeException(nameof(level), "level属性值无效,请参考: System.Diagnostics.SourceLevels 与 System.Diagnostics.TraceEventType");
             }
-            WritedLevel = (SourceLevels) level;
+            WritedLevel = (SourceLevels)level;
         }
 
         /// <summary>
@@ -292,7 +292,7 @@ namespace blqw.Logger
             {
                 return false;
             }
-            var b = ((int) level & (int) eventType) != 0;
+            var b = ((int)level & (int)eventType) != 0;
             InnerLogger?.Return(b.ToString());
             return b;
         }

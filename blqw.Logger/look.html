@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Hello world!</title>
     <!-- ZUI 标准版压缩后的 CSS 文件 -->
-    <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/zui/1.5.0/css/zui.min.css">
+    <link rel="stylesheet" href="http://cdn.bootcss.com/zui/1.5.0/css/zui.min.css">
+
     <style>
         .example { position: relative; padding: 20px; margin: 0 0 15px; border: 1px solid #ddd; border-style: solid; outline: 0; -webkit-transition: all .3s; -o-transition: all .3s; transition: all .3s; }
     </style>
@@ -15,14 +16,13 @@
     <div class="example">
         <form class="form-inline">
             <div class="form-group">
-                <label for="exampleInputInviteCode3">邀请码</label>
-                <input type="password" class="form-control" id="exampleInputInviteCode3" placeholder="XXXX-XXXX-XXXX">
+                <input type="file" class="form-control" id="logfile" placeholder="*.log" multiple="multiple" style="width:auto">
+                <input type="text" class="form-control" id="searchKey" placeholder="请输入要搜索的关键字">
             </div>
-            <button type="submit" class="btn btn-primary">激活</button>
+            <button type="submit" class="btn btn-primary">搜索</button>
         </form>
     </div>
-    <hr />
-    <table class="table table-condensed">
+    <table id="logs" class="table table-condensed" style="display: none;">
         <colgroup>
             <col style="width: 150px" />
             <col style="width: 100px" />
@@ -36,22 +36,40 @@
             </tr>
         </thead>
         <tbody>
-            <tr>
+            <tr class="{color}" style="cursor: pointer" onclick="detail('{UID}')">
                 <td>{Time}</td>
-                <td>{Level}</td>
+                <td>{LogLevel}</td>
                 <td>{Summary}</td>
             </tr>
         </tbody>
     </table>
 
+    <div id="logdetail" style="display: none">
+        <div class="list-group" style="margin: 0">
+            <a class="list-group-item" href="#" onclick="$(this).next().collapse('toggle')" style="display: block" >
+                <span class="text-success">[{time}]</span>
+                <span class="text-{color}">{level}</span>
+                【{category}】
+                {message}
+            </a>
+            <div class="collapse">
+                <div class="bg-primary with-padding">
+                    {callstack}
+                </div>
+            </div>
+        </div>
+    </div>
 
 
-
-    <!-- 在此处编码你的创意 -->
     <!-- ZUI Javascript 依赖 jQuery -->
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/zui/1.5.0/lib/jquery/jquery.js"></script>
+    <script src="http://cdn.bootcss.com/zui/1.5.0/lib/jquery/jquery.js"></script>
     <!-- ZUI 标准版压缩后的 JavaScript 文件 -->
-    <script src="http://cdnjs.cloudflare.com/ajax/libs/zui/1.5.0/js/zui.min.js"></script>
+    <script src="http://cdn.bootcss.com/zui/1.5.0/js/zui.min.js"></script>
+    <!--//cdn.bootcss.com/zui/版本号/dist目录下的文件路径及名称-->
+    <script src="http://blqw-1251195077.cossh.myqcloud.com/bootbox.min.js"></script>
+
+
+
     <script src="http://blqw-1251195077.cossh.myqcloud.com/blqw.tools.js"></script>
     <!--本地文件处理-->
     <script>
@@ -90,8 +108,147 @@
             }
         }
     </script>
-    <script>
 
+    <!--日志格式处理-->
+    <script>
+        function ParseLogs(text) {
+            var lines = text.split(/[\n\r]+/g);
+            var list = [];
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (line == null || $.trim(line).length === 0) {
+                    continue;
+                }
+                var arr = line.split(",");
+                var log = {
+                    Time: arr[0],
+                    UID: arr[1],
+                    LogLevel: ['', '异常', '警告', '提示', '调试'][parseInt(arr[2])],
+                    Module: arr[3],
+                    Details: ParseDetails(arr[4])
+                };
+                log.Summary = GetSummary(log);
+                var search = $.trim($("#searchKey").val());
+                if (search.length > 0) {
+                    var regexp = new RegExp("(" + search + ")", "gmi");
+                    var l = log.Summary.length;
+                    log.Summary = log.Summary.replace(regexp, "<b class='highlight'>$1</b>");
+                    if (l === log.Summary.length) {
+                        continue;
+                    }
+                }
+                list.push(log);
+            }
+            list.sort(function (a, b) { return Date.parse(b.Time) - Date.parse(a.Time); });
+            return list;
+        }
+
+        function GetSummary(log) {
+            var search = $.trim($("#searchKey").val());
+            var lines = [];
+            for (var i = 0; i < log.Details.length; i++) {
+                var d = log.Details[i];
+                if ((/^[*].+[*]$/g).test(d.category)) {
+                    lines.push(d.message);
+                } else if (search.length > 0) {
+                    var regexp = new RegExp(search, "gi");
+                    if (regexp.test(d.category)) {
+                        lines.push(d.category);
+                    } else if (regexp.test(d.message)) {
+                        lines.push(d.message);
+                    } else if (regexp.test(d.category)) {
+                        lines.push(d.callstack);
+                    } else if (regexp.test(d.text)) {
+                        lines.push(d.text);
+                    }
+                }
+            }
+            if (lines.length === 0) {
+                return "无摘要";
+            }
+            return lines.join("<br />");
+        }
+
+        function ParseDetails(text) {
+            text = decodeURIComponent(text);
+            var lines = text.split(/[\n\r]+/g);
+            var list = [];
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                if (line == null || $.trim(line).length === 0) {
+                    continue;
+                }
+                var arr = line.split(",");
+                var log = {
+                    time: arr[0],
+                    level: ['', '异常', '警告', '提示', '调试'][parseInt(arr[1])],
+                    category: decodeURIComponent(arr[2]),
+                    message: decodeURIComponent(arr[3]),
+                    callstack: decodeURIComponent(arr[4]),
+                    text: decodeURIComponent(arr[5])
+                };
+                list.push(log);
+            }
+            return list;
+        }
+    </script>
+
+    <script>
+        $("#logfile").change(function () {
+            upload(this,
+                function (text) {
+                    var data = ParseLogs(text);
+                    $blqw.fillTable("#logs", data, function (d, n) {
+                        switch (n) {
+                            case "color":
+                                switch (d.LogLevel) {
+                                    case "异常":
+                                        return "danger";
+                                    case "警告":
+                                        return "warning";
+                                    case "提示":
+                                        return "active";
+                                }
+                                break;
+                            default:
+                        }
+                    });
+                    $blqw.data.Logs = {};
+                    for (var i in data) {
+                        $blqw.data.Logs[data[i].UID] = data[i];
+                    }
+                    $("#logs").show();
+                });
+        });
+
+        function detail(uid) {
+            var ele = $("#logdetail > *").clone();
+            $blqw.fillList(ele, $blqw.data.Logs[uid].Details, function (d, n) {
+                switch (n) {
+                    case "color":
+                        switch (d.level) {
+                            case "异常":
+                                return "danger";
+                            case "警告":
+                                return "warning";
+                            case "提示":
+                                return "special";
+                            case "调试":
+                                return "primary";
+                        }
+                        break;
+                    default:
+                }
+            });
+            bootbox.dialog({
+                message: ele,
+                onEscape: true,
+                show: true,
+                backdrop: true,
+                closeButton: false,
+                size: 'large',
+            });
+        }
 
     </script>
 </body>

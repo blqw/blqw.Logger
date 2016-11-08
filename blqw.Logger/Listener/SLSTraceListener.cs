@@ -12,8 +12,6 @@ using blqw.Logger;
 // ReSharper disable once InconsistentNaming
 public sealed class SLSTraceListener : FileTraceListener
 {
-    private SourceLevels _writedLevel;
-
     /// <summary>
     /// 初始化侦听器
     /// </summary>
@@ -36,14 +34,7 @@ public sealed class SLSTraceListener : FileTraceListener
     /// </summary>
     protected override bool ShouldTrace(TraceEventCache cache, string source, TraceEventType eventType, int id, string formatOrMessage,
         object[] args, object data1, object[] data) => WritedLevel != SourceLevels.Off;
-
-    private int _initialized = 0;
-
-    /// <summary>
-    /// 获取当前线程中的日志跟踪等级
-    /// </summary>
-    protected override SourceLevels WritedLevel => _writedLevel;
-
+    
     /// <summary>
     /// 获取跟踪侦听器支持的自定义特性。
     /// </summary>
@@ -53,13 +44,6 @@ public sealed class SLSTraceListener : FileTraceListener
 
     protected override void Initialize()
     {
-        SourceLevels writedLevel;
-        if (Enum.TryParse(Attributes["level"] ?? "All", true, out writedLevel) == false)
-        {
-            // ReSharper disable once NotResolvedInText
-            throw new ArgumentOutOfRangeException("level", "level属性值无效,请参考: System.Diagnostics.SourceLevels");
-        }
-        WritedLevel = _writedLevel;
         QueueMaxCount = GetAttributeValue("queueMaxLength", 10000, int.MaxValue, 5000 * 10000); //兼容之前的一个坑
         base.Initialize();
         if (Debugger.IsAttached)

@@ -121,7 +121,6 @@ public class FileTraceListener : TraceListenerBase
         var writer = Writer;
         writer.Logger = InnerLogger;
         writer.Initialize(this);
-        Initialize();
         return new WriteQueue(writer, QueueMaxCount, BatchMaxCount, BatchMaxWait);
     }
 
@@ -134,6 +133,7 @@ public class FileTraceListener : TraceListenerBase
         BatchMaxWait = TimeSpan.FromSeconds(GetAttributeValue("batchMaxWait", 1, int.MaxValue, BatchMaxWait == TimeSpan.Zero ? 10 : (int)BatchMaxWait.TotalSeconds));
         BatchMaxCount = GetAttributeValue("batchMaxCount", 1, int.MaxValue, BatchMaxCount == 0 ? 2000 : BatchMaxCount);
         QueueMaxCount = GetAttributeValue("queueMaxCount", 1, int.MaxValue, QueueMaxCount == 0 ? 1000 * 10000 : QueueMaxCount);
+        base.Initialize();
     }
 
     /// <summary>
