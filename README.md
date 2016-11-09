@@ -72,8 +72,12 @@
 </system.diagnostics>
 ```
 ### 页面查看
-[查看](blqw.Logger/look.html)  
-[SLS日志](Demo/0.log)(下载到本地查看)
+下载2个文件到本地测试效果  
+[页面](http://blqw-1251195077.cossh.myqcloud.com/look.html)  
+[日志文件](http://blqw-1251195077.cossh.myqcloud.com/0.log)  
+![Loghtml1](loghtml1.png)
+![Loghtml2](loghtml2.png)
+![Loghtml3](loghtml3.png)
 
 ## 关于自定义文件写入格式
 ### 自定义文件写入
