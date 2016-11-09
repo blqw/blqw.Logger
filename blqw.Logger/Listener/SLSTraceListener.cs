@@ -80,7 +80,7 @@ public sealed class SLSTraceListener : FileTraceListener
         if (Trace.AutoFlush)
         {
             //判断当前方法是否是由于主动调用 .Flush() 触发的
-            if ("Flush".Equals(new StackFrame(1, false).GetMethod().Name, StringComparison.Ordinal))
+            if (!"Flush".Equals(new StackFrame(1, false).GetMethod().Name, StringComparison.Ordinal))
             {
                 return;
             }
