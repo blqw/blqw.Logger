@@ -79,6 +79,40 @@
 ![Loghtml2](loghtml2.png)
 ![Loghtml3](loghtml3.png)
 
+### 使用 logstash 抓取日志
+logstash2.2.2 配置 cvs.conf
+``` 
+input {
+    file {
+        type => "csv_log_1"
+        path => ["根据web.config中日志的输出位置填写/*/*/*.log"]
+        start_position => "beginning"
+    }
+}
+filter {
+    if [type] == "csv_log_1" {
+        csv {
+            separator => ","
+            columns => ["time", "uid", "level", "topic", "content", "search"]
+        } 
+    }
+}
+output {
+    if [type] == "csv_log_1" {
+        logservice {
+            codec => "json"
+            endpoint => "cn-hangzhou-vpc.log.aliyuncs.com" //可能会有变化
+            project => "webapi-log2" //可能会有变化
+            logstore => "cvs_log" //可能会有变化
+            topic => ""
+            source => ""
+            access_key_id => "根据实际情况填写"
+            access_key_secret => "根据实际情况填写"
+            max_send_retry => 10
+        }
+    }
+}
+```
 ## 关于自定义文件写入格式
 ### 自定义文件写入
 ```csharp
@@ -160,41 +194,6 @@ Logger.Return("1"); // 等级=Stop ,离开方法并记录返回值
 `N`由属性`batchMaxWait`控制，`M`由属性`batchMaxCount`控制  
 但当`Debugger.IsAttached`时，`batchMaxWait`强制设置为`1`（1秒无日志输出到文件）  
 
-## `SLSTraceListener` 使用
-### logstash2.2.2 配置
-cvs.conf
-``` 
-input {
-    file {
-        type => "csv_log_1"
-        path => ["根据web.config中日志的输出位置填写/*/*/*.log"]
-        start_position => "beginning"
-    }
-}
-filter {
-    if [type] == "csv_log_1" {
-        csv {
-            separator => ","
-            columns => ["time", "uid", "level", "topic", "content", "search"]
-        } 
-    }
-}
-output {
-    if [type] == "csv_log_1" {
-        logservice {
-            codec => "json"
-            endpoint => "cn-hangzhou-vpc.log.aliyuncs.com" //可能会有变化
-            project => "webapi-log2" //可能会有变化
-            logstore => "cvs_log" //可能会有变化
-            topic => ""
-            source => ""
-            access_key_id => "根据实际情况填写"
-            access_key_secret => "根据实际情况填写"
-            max_send_retry => 10
-        }
-    }
-}
-```
 ## 更新日志
 ### [1.3.3] 2016.11.09
 * 修复一些不合理的设置
