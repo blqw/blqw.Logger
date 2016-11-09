@@ -14,7 +14,7 @@
 </system.diagnostics>
 ```
 监听器属性说明
-* `type` : (必须)侦听器类型,固定为SLSTraceListener, blqw.Logger
+* `type` : (必须)侦听器类型,FileTraceListener或其子类
 * `initializeData` : 日志写入器的类型，默认"blqw.Logger.FastFileWriter, blqw.Logger"
 * `queueMaxCount` : 队列中的最大数量，默认 1000万 [限制不能小于100]
 * `batchMaxCount` : 批处理最大数量，默认2000 [限制不能小于1]
