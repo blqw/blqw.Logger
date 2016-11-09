@@ -28,6 +28,7 @@ namespace Demo
         {
             Console.WriteLine(typeof(MyLogWriter).AssemblyQualifiedName);
             Logger.Log(TraceEventType.Verbose, "测试");
+            Logger.Warn(Logger.ToJsonString(), "测试警告", new { id = 1, name = "blqw" });
             try
             {
                 int i = 0;

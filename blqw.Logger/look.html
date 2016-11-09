@@ -10,6 +10,7 @@
 
     <style>
         .example { position: relative; padding: 20px; margin: 0 0 15px; border: 1px solid #ddd; border-style: solid; outline: 0; -webkit-transition: all .3s; -o-transition: all .3s; transition: all .3s; }
+        .long-text { word-break: break-all; /*支持IE，chrome，FF不支持*/ 　　word-wrap: break-word; /*支持IE，chrome，FF*/ }
     </style>
 </head>
 <body>
@@ -19,10 +20,10 @@
                 <input type="file" class="form-control" id="logfile" placeholder="*.log" multiple="multiple" style="width:auto">
                 <input type="text" class="form-control" id="searchKey" placeholder="请输入要搜索的关键字">
             </div>
-            <button type="submit" class="btn btn-primary">搜索</button>
+            <button type="button" class="btn btn-primary" onclick="$('#logfile').trigger('change')">搜索</button>
         </form>
     </div>
-    <table id="logs" class="table table-condensed" style="display: none;">
+    <table id="logs" class="table table-condensed long-text " style="display: none;">
         <colgroup>
             <col style="width: 150px" />
             <col style="width: 100px" />
@@ -36,7 +37,7 @@
             </tr>
         </thead>
         <tbody>
-            <tr class="{color}" style="cursor: pointer" onclick="detail('{UID}')">
+            <tr class="{color}" style="cursor: pointer" onclick="detail('{index}')">
                 <td>{Time}</td>
                 <td>{LogLevel}</td>
                 <td>{Summary}</td>
@@ -45,19 +46,47 @@
     </table>
 
     <div id="logdetail" style="display: none">
-        <div class="list-group" style="margin: 0">
-            <a class="list-group-item" href="#" onclick="$(this).next().collapse('toggle')" style="display: block" >
+        <ul class="list-group" style="margin: 0">
+            <li class="list-group-item  long-text " href="#">
                 <span class="text-success">[{time}]</span>
                 <span class="text-{color}">{level}</span>
                 【{category}】
                 {message}
-            </a>
-            <div class="collapse">
-                <div class="bg-primary with-padding">
-                    {callstack}
+                {button1}
+                {button2}
+                {button3}
+                <div class="callstack collapse" data-parent="#logdetail">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">
+                            调用堆栈
+                        </h4>
+                    </div>
+                    <div class="with-padding long-text bg-default">
+                        {callstack}
+                    </div>
                 </div>
-            </div>
-        </div>
+                <div class="text collapse" data-parent="#logdetail">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">
+                            详细内容
+                        </h4>
+                    </div>
+                    <div class="with-padding long-text bg-default">
+                        {text}
+                    </div>
+                </div>
+                <div class="format collapse" data-parent="#logdetail">
+                    <div class="panel-heading">
+                        <h4 class="panel-title">
+                            格式化
+                        </h4>
+                    </div>
+                    <div class="with-padding long-text bg-default">
+
+                    </div>
+                </div>
+            </li>
+        </ul>
     </div>
 
 
@@ -66,11 +95,7 @@
     <!-- ZUI 标准版压缩后的 JavaScript 文件 -->
     <script src="http://cdn.bootcss.com/zui/1.5.0/js/zui.min.js"></script>
     <!--//cdn.bootcss.com/zui/版本号/dist目录下的文件路径及名称-->
-    <script src="http://blqw-1251195077.cossh.myqcloud.com/bootbox.min.js"></script>
-
-
-
-    <script src="http://blqw-1251195077.cossh.myqcloud.com/blqw.tools.js"></script>
+    <script src="http://blqw-1251195077.cossh.myqcloud.com/blqw.tools.js?v2"></script>
     <!--本地文件处理-->
     <script>
         function upload(input, callback) {
@@ -132,7 +157,7 @@
                 if (search.length > 0) {
                     var regexp = new RegExp("(" + search + ")", "gmi");
                     var l = log.Summary.length;
-                    log.Summary = log.Summary.replace(regexp, "<b class='highlight'>$1</b>");
+                    log.Summary = log.Summary.replace(regexp, "<b class='bg-warning'>$1</b>");
                     if (l === log.Summary.length) {
                         continue;
                     }
@@ -194,12 +219,23 @@
     </script>
 
     <script>
+
+        $blqw.data.loglist = new $.zui.ModalTrigger({
+            size: "fullscreen",
+            backdrop: false
+        });
+
         $("#logfile").change(function () {
             upload(this,
                 function (text) {
                     var data = ParseLogs(text);
-                    $blqw.fillTable("#logs", data, function (d, n) {
+                    $blqw.data.Logs = data;
+                    $blqw.fillTable("#logs", data, function (d, n, i) {
                         switch (n) {
+                            case "Summary":
+                                return d.Summary;
+                            case "index":
+                                return i;
                             case "color":
                                 switch (d.LogLevel) {
                                     case "异常":
@@ -213,17 +249,31 @@
                             default:
                         }
                     });
-                    $blqw.data.Logs = {};
-                    for (var i in data) {
-                        $blqw.data.Logs[data[i].UID] = data[i];
-                    }
                     $("#logs").show();
                 });
         });
 
-        function detail(uid) {
+        function detail(index) {
+            if (index < 0 || index >= $blqw.data.Logs.length) {
+                new $.zui.Messager('没有了!', {
+                    type: 'info',
+                    placement: 'center', // 定义显示位置
+                    time: 1000,
+                }).show();
+                return;
+            }
+
             var ele = $("#logdetail > *").clone();
-            $blqw.fillList(ele, $blqw.data.Logs[uid].Details, function (d, n) {
+            var search = $.trim($("#searchKey").val());
+            var regexp = null;
+            if (search.length > 0) {
+                regexp = new RegExp("(" + search + ")", "gmi");
+            }
+            var highlight = function (text) {
+                var html = $blqw.encodeHTML(text);
+                return regexp == null ? html : html.replace(regexp, "<b class='bg-warning'>$1</b>");;
+            };
+            $blqw.fillList(ele, $blqw.data.Logs[index].Details, function (d, n) {
                 switch (n) {
                     case "color":
                         switch (d.level) {
@@ -237,16 +287,63 @@
                                 return "primary";
                         }
                         break;
+                    case "category":
+                        if (d.category != null && d.category.length > 2 && d.category.slice(0, 1) === '*' && d.category.slice(-1) === '*') {
+                            return "<strong>" + highlight(d.category.slice(1, -1)) + "</strong>";
+                        }
+                        return highlight(d.category);
+                    case "message":
+                        return highlight(d.message);
+                    case "button1":
+                        if (d.callstack != null && d.callstack !== "") {
+                            return '<button onclick="$(this).nextAll(\'.callstack\').collapse({parent:$(this).parent()}).collapse(\'toggle\')">堆栈</button>';
+                        }
+                        break;
+                    case "button2":
+                        if (d.text != null && d.text !== "") {
+                            return '<button onclick="$(this).nextAll(\'.text\').collapse({parent:$(this).parent()}).collapse(\'toggle\')">详情</button>';
+                        }
+                        break;
+                    case "button3":
+                        //1.decode
+                        var raw = $.trim(d.message);
+                        var msg = raw;
+                        try {
+                            var decode = decodeURIComponent(msg);
+                            if (decode !== msg) {
+                                msg = decode;
+                            }
+                        } catch (e) {
+
+                        }
+
+                        //2.json
+                        try {
+                            if (msg && (msg.charAt(0) === '[' || msg.charAt(0) === '{')) {
+                                var obj = $.parseJSON(msg.replace(/\</g, "&lt;").replace(/\>/g, "&gt;"));
+                                msg = kk.jsonFormat(obj);
+                            }
+
+                        } catch (e) {
+                            console.debug(e);
+                        }
+
+                        //3.crlf
+                        if ((/[\n\r]/).test(msg)) {
+                            msg = kk.encodeHTML(msg, true);
+                        }
+
+                        if (msg !== raw) {
+                            return '<button data-format="' + encodeURIComponent(msg) + '" onclick="$(this).nextAll(\'.format\').collapse(\'toggle\').find(\':last\').html(decodeURIComponent($(this).data(\'format\')))">格式化</button>';
+                        }
+
+                        break;
                     default:
                 }
             });
-            bootbox.dialog({
-                message: ele,
-                onEscape: true,
-                show: true,
-                backdrop: true,
-                closeButton: false,
-                size: 'large',
+            $blqw.data.loglist.show({
+                title: "<a href='#' onclick='detail(" + index + "-1)'>&lt;&lt;上一条</a>&nbsp;&nbsp;日志详情&nbsp;&nbsp;<a href='#' onclick='detail(" + index + "+1)'>下一条&gt;&gt;</a>",
+                custom: ele,
             });
         }
 

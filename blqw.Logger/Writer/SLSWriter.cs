@@ -217,10 +217,7 @@ namespace blqw.Logger
                     base.Append(UTF8Bytes.Comma);
                     WriteCallstack(log);
                     base.Append(UTF8Bytes.Comma);
-                    if (message == null)
-                    {
-                        WriteContent(log.Content);
-                    }
+                    WriteContent(log.Content);
                     base.Append(UTF8Bytes.Newline);
                 }
                 AppendComma();
@@ -343,51 +340,75 @@ namespace blqw.Logger
         /// <param name="content"> </param>
         private void WriteContent(object content)
         {
+            if (content == null)
+            {
+                return;
+            }
             var ex = content as Exception;
-            if (ex == null)
+            if (ex != null)
             {
-                base.Append(DoubleDecode(content?.ToString()));
-                return;
+                base.Append(UTF8Bytes.Assembly);
+                base.Append(UTF8Bytes.Newline2);
+                base.Append(DoubleDecode(ex.GetType().AssemblyQualifiedName));
+                if (ex.TargetSite != null)
+                {
+                    base.Append(UTF8Bytes.Method);
+                    base.Append(UTF8Bytes.Newline2);
+                    base.Append(DoubleDecode(ex.TargetSite.ReflectedType?.ToString()));
+                    base.Append(UTF8Bytes.Plus);
+                    base.Append(UTF8Bytes.Newline2);
+                    base.Append(DoubleDecode(ex.TargetSite.ToString()));
+                }
+                base.Append(UTF8Bytes.Detail);
+                base.Append(UTF8Bytes.Newline2);
+                base.Append(DoubleDecode(ex.ToString()));
+                if (ex.Data.Count == 0)
+                {
+                    return;
+                }
+                base.Append(UTF8Bytes.Data);
+                base.Append(UTF8Bytes.Newline2);
+                foreach (DictionaryEntry item in ex.Data)
+                {
+                    var value = item.Value;
+                    base.Append(DoubleDecode(item.Key?.ToString()));
+                    base.AppendWhiteSpace();
+                    base.AppendColon();
+                    base.AppendWhiteSpace();
+                    if (value == null)
+                    {
+                        base.Append(UTF8Bytes.Null);
+                    }
+                    else
+                    {
+                        base.Append(DoubleDecode(value.ToString()));
+                    }
+                    base.Append(UTF8Bytes.Newline2);
+                }
             }
+            var ee = (content as IEnumerable)?.GetEnumerator()
+                     ?? content as IEnumerator;
+            if (ee != null)
+            {
 
-            base.Append(UTF8Bytes.Assembly);
-            base.Append(UTF8Bytes.Newline2);
-            base.Append(DoubleDecode(ex.GetType().AssemblyQualifiedName));
-            if (ex.TargetSite != null)
-            {
-                base.Append(UTF8Bytes.Method);
-                base.Append(UTF8Bytes.Newline2);
-                base.Append(DoubleDecode(ex.TargetSite.ReflectedType?.ToString()));
-                base.Append(UTF8Bytes.Plus);
-                base.Append(UTF8Bytes.Newline2);
-                base.Append(DoubleDecode(ex.TargetSite.ToString()));
-            }
-            base.Append(UTF8Bytes.Detail);
-            base.Append(UTF8Bytes.Newline2);
-            base.Append(DoubleDecode(ex.ToString()));
-            if (ex.Data.Count == 0)
-            {
+                base.Append(UTF8Bytes.Assembly);
+                base.AppendColon();
+                base.Append(DoubleDecode(ee.GetType().AssemblyQualifiedName));
+                var i = 0;
+                while (ee.MoveNext())
+                {
+                    base.Append(UTF8Bytes.Newline2);
+                    base.Append(i.ToString());
+                    base.AppendColon();
+                    base.AppendWhiteSpace();
+                    base.Append(DoubleDecode(ee.Current.ToString()));
+                    i++;
+                }
                 return;
             }
-            base.Append(UTF8Bytes.Data);
-            base.Append(UTF8Bytes.Newline2);
-            foreach (DictionaryEntry item in ex.Data)
-            {
-                var value = item.Value;
-                base.Append(DoubleDecode(item.Key?.ToString()));
-                base.AppendWhiteSpace();
-                base.AppendColon();
-                base.AppendWhiteSpace();
-                if (value == null)
-                {
-                    base.Append(UTF8Bytes.Null);
-                }
-                else
-                {
-                    base.Append(DoubleDecode(value.ToString()));
-                }
-                base.Append(UTF8Bytes.Newline2);
-            }
+            base.Append(DoubleDecode(content.ToString()));
+            return;
+            
         }
 
         private void WriteLevel(TraceEventType logLevel)

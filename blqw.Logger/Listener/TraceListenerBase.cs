@@ -107,7 +107,7 @@ namespace blqw.Logger
         /// <summary>
         /// 还没有输出的缓存数量 
         /// </summary>
-        public int CacheCount => _queue.Count;
+        public int CacheCount => _queue?.Count ?? 0;
 
         /// <summary>
         /// 日志记录器 
@@ -117,7 +117,7 @@ namespace blqw.Logger
         /// <summary>
         /// 队列是否正在休息 
         /// </summary>
-        public bool IsSleep => _queue.IsWriting == false;
+        public bool IsSleep => _queue?.IsWriting == false;
 
         /// <summary>
         /// 获取一个值，该值指示跟踪侦听器是否是线程安全的。 
