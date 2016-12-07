@@ -31,7 +31,7 @@ namespace blqw.Logger
         {
             if (_isInitialized == false)
             {
-                _values = (object[]) CallContext.GetData(CONTEXT_FIELD);
+                _values = (object[])CallContext.LogicalGetData (CONTEXT_FIELD);
                 if (_values != null)
                 {
                     _contextID = (Guid) _values[0];
@@ -48,7 +48,7 @@ namespace blqw.Logger
                         Trace.CorrelationManager.ActivityId = _contextID = Guid.NewGuid();
                     }
                     _values = new object[] { _contextID, _minLevel };
-                    CallContext.SetData(CONTEXT_FIELD, _values);
+                    CallContext.LogicalSetData(CONTEXT_FIELD, _values);
                 }
                 else
                 {

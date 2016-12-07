@@ -416,7 +416,8 @@ namespace blqw.Logger
             }
             //获取最大文件编号
             var max = GetMaxFileNumber(path);
-            while (true)
+            var tryCount = 0;
+            while (tryCount < 50)
             {
                 var file = GetFile(path, max);
                 try
@@ -430,14 +431,16 @@ namespace blqw.Logger
                         stream.Write(_Utf8Head, 0, _Utf8Head.Length); //如果文件是新的,写入文件头
                     }
                     FilePath = file.FullName;
-                    break;
+                    return;
                 }
                 catch (Exception ex)
                 {
                     max++; //如果文件打开失败,忽略这个文件
                     Logger?.Error(ex, $"文件({file.FullName})打开失败");
                 }
+                tryCount++;
             }
+            throw new InvalidOperationException($"日志尝试写入路径`{path}`失败");
         }
 
         #endregion Private Methods
