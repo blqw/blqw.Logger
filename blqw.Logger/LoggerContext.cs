@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Runtime.Remoting.Messaging;
+using System.Web;
 
 namespace blqw.Logger
 {
@@ -31,11 +32,11 @@ namespace blqw.Logger
         {
             if (_isInitialized == false)
             {
-                _values = (object[])CallContext.LogicalGetData (CONTEXT_FIELD);
+                _values = (object[])(CallContext.LogicalGetData(CONTEXT_FIELD) ?? HttpContext.Current?.Items[CONTEXT_FIELD]);
                 if (_values != null)
                 {
-                    _contextID = (Guid) _values[0];
-                    _minLevel = (TraceEventType) _values[1];
+                    _contextID = (Guid)_values[0];
+                    _minLevel = (TraceEventType)_values[1];
                     _isNew = false;
                 }
                 else if (create)
@@ -49,6 +50,7 @@ namespace blqw.Logger
                     }
                     _values = new object[] { _contextID, _minLevel };
                     CallContext.LogicalSetData(CONTEXT_FIELD, _values);
+                    HttpContext.Current?.Items.Add(CONTEXT_FIELD, _values);
                 }
                 else
                 {

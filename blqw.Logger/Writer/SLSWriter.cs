@@ -35,7 +35,7 @@ namespace blqw.Logger
         }
 
         #endregion Public Constructors
-        
+
         static class UTF8Bytes
         {
             public static byte[] Assembly { get; } = Encoding.UTF8.GetBytes("Assembly : ");
@@ -58,7 +58,7 @@ namespace blqw.Logger
         #region Private Fields
 
         //单个文件容量阈值
-        private const long DEFAULT_FILE_MAX_SIZE = 5*1024*1024; //兆
+        private const long DEFAULT_FILE_MAX_SIZE = 5 * 1024 * 1024; //兆
 
         /// <summary>
         /// 需要转义的字符
@@ -175,7 +175,7 @@ namespace blqw.Logger
                     return;
                 }
                 var log = logs[0];
-                if (((int) _writedLevel & (int) log.Level) == 0)
+                if (((int)_writedLevel & (int)log.Level) == 0)
                 {
                     continue;
                 }
@@ -198,20 +198,31 @@ namespace blqw.Logger
                     base.Append(UTF8Bytes.Comma);
                     WriteLevel(log.Level);
                     base.Append(UTF8Bytes.Comma);
-                    if (log.Level > TraceEventType.Warning || string.IsNullOrEmpty(log.Category))
+
+                    if (string.IsNullOrEmpty(log.Category)) //没有分类时,显示来源
                     {
-                        base.Append(DoubleDecode(log.Category ?? log.Source)); //没有分类时,显示来源
+                        if (log.Level <= TraceEventType.Warning || log.TraceEventID == int.MinValue)
+                        {
+                            base.Append(UTF8Bytes.Star);
+                            base.Append(DoubleDecode(log.Source)); 
+                            base.Append(UTF8Bytes.Star);
+                        }
+                        else
+                        {
+                            base.Append(DoubleDecode(log.Source));
+                        }
                     }
-                    else if (log.Category[0] == '*' && log.Category[log.Category.Length - 1] == '*')
+                    else if (log.Level <= TraceEventType.Warning)
                     {
-                        base.Append(DoubleDecode(log.Category)); //没有分类时,显示来源
+                        base.Append(UTF8Bytes.Star);
+                        base.Append(DoubleDecode(log.Category));
+                        base.Append(UTF8Bytes.Star);
                     }
                     else
                     {
-                        base.Append(UTF8Bytes.Star);
-                        base.Append(DoubleDecode(log.Category)); //没有分类时,显示来源
-                        base.Append(UTF8Bytes.Star);
+                        base.Append(DoubleDecode(log.Category));
                     }
+
                     base.Append(UTF8Bytes.Comma);
                     base.Append(DoubleDecode(message ?? "无"));
                     base.Append(UTF8Bytes.Comma);
@@ -258,14 +269,14 @@ namespace blqw.Logger
             }
             if (log.Callstack != null)
             {
-                if (log.File!=null)
+                if (log.File != null)
                 {
                     base.Append(UTF8Bytes.Newline2);
                 }
                 base.Append(DoubleDecode(log.Callstack));
             }
         }
-        
+
 
         /// <summary>
         /// 异步刷新
@@ -408,7 +419,7 @@ namespace blqw.Logger
             }
             base.Append(DoubleDecode(content.ToString()));
             return;
-            
+
         }
 
         private void WriteLevel(TraceEventType logLevel)

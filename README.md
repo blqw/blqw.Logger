@@ -195,6 +195,10 @@ Logger.Return("1"); // 等级=Stop ,离开方法并记录返回值
 但当`Debugger.IsAttached`时，`batchMaxWait`强制设置为`1`（1秒无日志输出到文件）  
 
 ## 更新日志
+
+### [1.3.5.0] 2017.04.25
+- 优化策略: 在ASP.NET中使用HttpContext+CallContext来保存上下文信息
+
 ### [1.3.4.1] 2016.12.07
 * 修复一个可能存在于MVC中的bug 
 
